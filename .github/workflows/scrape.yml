@@ -1,0 +1,41 @@
+name: Scrape RSS Feeds
+
+on:
+  schedule:
+    # Runs at 17:00 UTC daily = 01:00 SGT the next day.
+    - cron: "0 17 * * *"
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run RSS scraper
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: node scripts/scrape-news.mjs
+
+      - name: Commit updated feed.json
+        run: |
+          git config user.name "JoyPulse Bot"
+          git config user.email "bot@joypulse.app"
+          git add public/feed.json
+          # Only commit if feed.json actually changed
+          git diff --cached --quiet && echo "No changes to feed.json" || \
+            (git commit -m "🌟 Update feed.json [$(date -u +%Y-%m-%dT%H:%M:%SZ)]" && git push)

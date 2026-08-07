@@ -1,0 +1,517 @@
+#!/usr/bin/env node
+/**
+ * JoyPulse RSS Scraper
+ *
+ * Standalone script — run via `node scripts/scrape-news.mjs`
+ * Fetches RSS feeds, applies positivity scoring, deduplicates, and
+ * writes the result to public/feed.json as a static asset.
+ *
+ * Designed to be executed by a GitHub Action on a cron schedule.
+ * NO database, NO server — pure file output.
+ */
+
+import Parser from "rss-parser";
+import { writeFileSync, readFileSync, existsSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+import { createHash } from "crypto";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const OUTPUT_PATH = resolve(__dirname, "..", "public", "feed.json");
+
+// ═══════════════════════════════════════════════════════════════════
+// LLM CLASSIFICATION — second-pass sentiment check via OpenRouter
+//
+// The keyword scorer above is a cheap first-pass gate: fast, free, and
+// good at throwing out obvious junk before we spend any API calls. But
+// it can't understand context, tone, or nuance — it can be fooled by a
+// single word in an otherwise negative story.
+//
+// This step sends only the keyword-survivors to a free OpenRouter model
+// for a real judgment call. Only used once daily, so speed doesn't
+// matter — we try a short list of free models in order and fall
+// through to the next if one is unavailable or rate-limited that day.
+//
+// NOTE: OpenRouter's free-tier model lineup shifts over time. Review
+// this list periodically at https://openrouter.ai/models?max_price=0
+// and swap in current, capable free models as needed.
+// ═══════════════════════════════════════════════════════════════════
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+const CANDIDATE_MODELS = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemini-2.0-flash-exp:free",
+  "qwen/qwen-2.5-72b-instruct:free",
+  "mistralai/mistral-small-24b-instruct-2501:free",
+  "deepseek/deepseek-chat:free",
+];
+
+const CLASSIFY_SYSTEM_PROMPT = `You are a strict editorial filter for a "good news only" publication.
+Given a headline and short summary, decide whether this is a GENUINELY uplifting, heartwarming, or positive story — not just a story that mentions a positive-sounding word.
+
+REJECT stories that are:
+- Primarily about tragedy, disaster, crime, conflict, illness outbreaks, or death — even if there's a small silver lining mentioned
+- Business/finance/political news with no real human-interest or uplifting angle, even if framed with words like "record," "growth," or "target"
+- Mixed or bittersweet stories where the negative framing dominates
+- Fear, controversy, or outrage-driven, even if a resolution is mentioned
+
+APPROVE stories that are:
+- Genuinely heartwarming acts of kindness, rescue, recovery, or generosity
+- Real scientific, medical, or environmental breakthroughs with clear positive impact
+- Uplifting community, cultural, or human-achievement stories
+- Wholesome, feel-good stories with no significant negative framing
+
+Respond with ONLY a JSON object, no other text:
+{"approved": true or false, "confidence": "high" or "medium" or "low", "reason": "one short sentence"}`;
+
+async function classifyWithLLM(title, summary) {
+  if (!OPENROUTER_API_KEY) return null; // No key configured — caller falls back to keyword result
+
+  const userPrompt = `Headline: ${title}\nSummary: ${summary}`;
+
+  for (const model of CANDIDATE_MODELS) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      const res = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: CLASSIFY_SYSTEM_PROMPT },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0,
+          max_tokens: 150,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        // 429 = rate limited, 402 = out of free credits, etc. — try next model.
+        console.log(`   ⚠ ${model} unavailable (status ${res.status}), trying next model…`);
+        continue;
+      }
+
+      const data = await res.json();
+      const raw = data?.choices?.[0]?.message?.content?.trim() || "";
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.log(`   ⚠ ${model} returned unparseable output, trying next model…`);
+        continue;
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (typeof parsed.approved !== "boolean") {
+        console.log(`   ⚠ ${model} returned malformed JSON, trying next model…`);
+        continue;
+      }
+
+      return {
+        approved: parsed.approved,
+        confidence: parsed.confidence || "unknown",
+        reason: parsed.reason || "",
+        model,
+      };
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.log(`   ⚠ ${model} failed (${err.message}), trying next model…`);
+    }
+  }
+
+  // Every candidate model failed — signal "no verdict" so the caller can
+  // fall back to the keyword-only result rather than losing the article.
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RSS FEED LIST — Singapore first, then Asia, then positive-news
+// ═══════════════════════════════════════════════════════════════════
+const RSS_FEEDS = [
+  // ── Singapore ──────────────────────────────────────────────────
+  { url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6511",  name: "CNA Singapore",       region: "singapore" },
+  { url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6936",  name: "CNA Asia",             region: "asia"      },
+  { url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6311",  name: "CNA World",            region: "world"     },
+  { url: "https://mothership.sg/feed/",                                                          name: "Mothership SG",        region: "singapore" },
+  // ── Dedicated positive-news sources (already curated — lower threshold) ─
+  { url: "https://www.goodnewsnetwork.org/feed/",                                                name: "Good News Network",    region: "world",     isPositiveFeed: true },
+  { url: "https://www.positive.news/feed/",                                                      name: "Positive News",        region: "world",     isPositiveFeed: true },
+  { url: "https://www.goodgoodgood.co/articles/rss.xml",                                         name: "Good Good Good",       region: "world",     isPositiveFeed: true },
+  { url: "https://www.thebetterindia.com/feed/",                                                 name: "The Better India",     region: "asia",      isPositiveFeed: true },
+  { url: "https://www.sunnyskyz.com/rss",                                                        name: "Sunny Skyz",           region: "world",     isPositiveFeed: true },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// POSITIVE PATTERNS — keywords by category, each with a score weight
+// ═══════════════════════════════════════════════════════════════════
+const POSITIVE_PATTERNS = {
+  humanity: [
+    "kindness", "kind", "generous", "generosity", "donate", "donated", "donation",
+    "volunteer", "charity", "help", "helped", "helping", "rescue", "rescued",
+    "hero", "heroic", "save", "saved", "saving", "community", "reunite", "reunited",
+    "forgive", "compassion", "selfless", "brave", "bravery", "courage", "courageous",
+    "inspire", "inspiring", "inspirational", "uplift", "uplifting", "heartwarming",
+    "wholesome", "mentor", "support", "solidarity", "empathy", "grateful", "gratitude",
+    "thank", "thanks", "thanksgiving", "pay it forward", "good samaritan",
+    "foster", "adopt", "adopted", "shelter", "food bank", "free meal", "free meals",
+  ],
+  science: [
+    "breakthrough", "discover", "discovered", "discovery", "innovation", "innovate",
+    "invent", "invented", "invention", "research", "researcher", "scientist",
+    "cure", "treatment", "therapy", "vaccine", "medical", "medicine",
+    "technology", "tech", "ai", "artificial intelligence", "robot", "solar",
+    "renewable", "clean energy", "electric", "battery", "quantum", "space",
+    "nasa", "satellite", "mars", "moon", "fusion", "genome", "stem cell",
+    "biotech", "startup", "launch", "patent", "prototype", "clinical trial",
+  ],
+  nature: [
+    "conservation", "conserve", "wildlife", "endangered", "species", "habitat",
+    "reforestation", "plant", "planted", "planting", "tree", "trees", "forest",
+    "ocean", "marine", "coral", "reef", "recycle", "recycling", "sustainable",
+    "biodiversity", "ecosystem", "green", "eco", "environment", "environmental",
+    "clean", "pollution", "carbon", "emission", "climate", "nature", "natural",
+    "animal", "animals", "turtle", "whale", "elephant", "panda", "tiger",
+    "bird", "butterfly", "bee", "bees", "pollinator", "garden", "park",
+  ],
+  sports: [
+    "champion", "championship", "medal", "gold medal", "silver medal",
+    "record", "world record", "olympic", "olympics", "tournament", "victory",
+    "win", "won", "winner", "triumph", "sportsmanship", "athlete", "team",
+    "marathon", "football", "soccer", "basketball", "swimming", "tennis",
+    "badminton", "rugby", "cricket", "goal", "score", "trophy",
+  ],
+  arts: [
+    "art", "artist", "music", "musician", "concert", "festival", "film",
+    "movie", "cinema", "theatre", "theater", "dance", "dancer", "sing",
+    "singer", "song", "album", "book", "author", "novel", "poetry",
+    "painting", "sculpture", "exhibition", "gallery", "museum",
+    "culture", "cultural", "heritage", "tradition", "craft", "design",
+    "architecture", "photography", "award", "grammy", "oscar", "emmy",
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// NEGATIVE FILTER PATTERNS — articles matching these are excluded
+// ═══════════════════════════════════════════════════════════════════
+const NEGATIVE_FILTER_PATTERNS = [
+  "kill", "killed", "killing", "murder", "murdered", "dead", "death", "die", "dies", "died",
+  "war", "warfare", "attack", "attacked", "bomb", "bombing", "bombed",
+  "terror", "terrorist", "terrorism", "shooting", "shot", "gunfire", "gunman",
+  "crash", "crashed", "fatal", "fatality", "victim", "victims",
+  "violence", "violent", "abuse", "abused", "abusive",
+  "rape", "raped", "assault", "assaulted", "molest",
+  "suicide", "suicidal", "kidnap", "kidnapped", "kidnapping",
+  "crime", "criminal", "felony", "homicide", "manslaughter",
+  "scandal", "scandalous", "fraud", "fraudulent", "corrupt", "corruption",
+  "scam", "scammed", "arrested", "arrest", "jail", "jailed",
+  "prison", "prisoner", "inmate", "drug bust", "drugs", "overdose",
+  "catastrophe", "catastrophic", "disaster", "disastrous",
+  "earthquake", "tsunami", "flood", "flooded", "flooding",
+  "famine", "drought", "wildfire", "fire",
+  "explosion", "exploded", "collapse", "collapsed",
+  "recession", "bankruptcy", "bankrupt", "layoff", "layoffs",
+  "fired", "downturn", "slump", "crisis",
+  "pandemic", "outbreak", "infection", "infected",
+  "cancer", "tumor", "tumour", "disease", "plague", "epidemic",
+  "execution", "executed", "massacre", "genocide", "refugee",
+  "coup", "overthrow", "stabbing", "stabbed",
+  "arson", "robbery", "theft", "stolen", "mourning", "mourn",
+  "hostage", "siege", "sanctions", "embargo", "missile", "nuke", "nuclear weapon",
+  "torture", "tortured", "trafficking", "trafficked",
+  "extremist", "extremism", "militia", "insurgent", "rebel",
+  "derail", "derailed", "wreck", "wrecked", "collide", "collision",
+  "drown", "drowned", "drowning", "suffocate",
+  "evict", "evicted", "demolish", "demolished",
+  "protest", "riot", "rioting", "clash", "clashes",
+  "threaten", "threatened", "threatening",
+  "indict", "indicted", "prosecute", "prosecuted", "convicted", "conviction",
+  "sentenced", "sentencing", "penalty", "death penalty",
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// LOCATION DETECTION — maps keywords in text to a country/location
+// ═══════════════════════════════════════════════════════════════════
+const LOCATION_MAP = [
+  { keywords: ["singapore", "singaporean", "sg", "merlion", "changi", "sentosa", "orchard road", "marina bay", "hdb", "hawker"], location: "Singapore", region: "singapore" },
+  { keywords: ["malaysia", "malaysian", "kuala lumpur", "penang", "sabah", "sarawak", "johor", "malacca"], location: "Malaysia", region: "asia" },
+  { keywords: ["indonesia", "indonesian", "jakarta", "bali", "java", "sumatra", "borneo"], location: "Indonesia", region: "asia" },
+  { keywords: ["thailand", "thai", "bangkok", "chiang mai", "phuket"], location: "Thailand", region: "asia" },
+  { keywords: ["vietnam", "vietnamese", "hanoi", "ho chi minh", "saigon"], location: "Vietnam", region: "asia" },
+  { keywords: ["philippines", "filipino", "manila", "cebu", "davao"], location: "Philippines", region: "asia" },
+  { keywords: ["japan", "japanese", "tokyo", "osaka", "kyoto", "hokkaido"], location: "Japan", region: "asia" },
+  { keywords: ["south korea", "korean", "seoul", "busan", "k-pop", "kpop"], location: "South Korea", region: "asia" },
+  { keywords: ["india", "indian", "delhi", "mumbai", "bangalore", "chennai", "kolkata", "hyderabad"], location: "India", region: "asia" },
+  { keywords: ["china", "chinese", "beijing", "shanghai", "guangzhou", "shenzhen", "hong kong"], location: "China", region: "asia" },
+  { keywords: ["taiwan", "taiwanese", "taipei"], location: "Taiwan", region: "asia" },
+  { keywords: ["myanmar", "burmese", "yangon"], location: "Myanmar", region: "asia" },
+  { keywords: ["cambodia", "cambodian", "phnom penh"], location: "Cambodia", region: "asia" },
+  { keywords: ["laos", "vientiane"], location: "Laos", region: "asia" },
+  { keywords: ["bangladesh", "dhaka"], location: "Bangladesh", region: "asia" },
+  { keywords: ["sri lanka", "colombo"], location: "Sri Lanka", region: "asia" },
+  { keywords: ["nepal", "kathmandu"], location: "Nepal", region: "asia" },
+  { keywords: ["australia", "australian", "sydney", "melbourne", "brisbane"], location: "Australia", region: "world" },
+  { keywords: ["new zealand", "auckland", "wellington"], location: "New Zealand", region: "world" },
+];
+
+function detectLocation(text) {
+  const lower = text.toLowerCase();
+  for (const entry of LOCATION_MAP) {
+    for (const kw of entry.keywords) {
+      if (lower.includes(kw)) {
+        return { location: entry.location, region: entry.region };
+      }
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCORING — returns { score, category } or null if negative
+// ═══════════════════════════════════════════════════════════════════
+// Cache compiled regexes so we don't rebuild them per-article
+const _wordBoundaryCache = new Map();
+function matchesWord(text, phrase) {
+  // Multi-word phrases (e.g. "pay it forward") match fine with simple includes.
+  // Single short tokens (e.g. "ai", "eco", "art") MUST use word boundaries,
+  // otherwise they false-positive inside unrelated words like "said", "daily",
+  // "economy", "quarter". \b works correctly for both cases since spaces are
+  // non-word characters too.
+  let re = _wordBoundaryCache.get(phrase);
+  if (!re) {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    re = new RegExp(`\\b${escaped}\\b`, "i");
+    _wordBoundaryCache.set(phrase, re);
+  }
+  return re.test(text);
+}
+
+function scoreArticle(title, summary, isPositiveFeed = false) {
+  const combined = `${title} ${summary}`.toLowerCase();
+
+  // Reject if any negative pattern matches
+  for (const neg of NEGATIVE_FILTER_PATTERNS) {
+    if (matchesWord(combined, neg)) return null;
+  }
+
+  // Also reject vague/short items
+  if (title.length < 20) return null;
+
+  // Additional negative context patterns (phrases, not just words)
+  const extraNegative = [
+    "sex charge", "sex offence", "sentenced to", "faces charges",
+    "charged with", "accused of", "under investigation", "probe",
+    "crackdown", "controversial", "backlash", "fury", "outrage",
+    "fears", "worried", "concern", "troubl", "tension",
+    "surge in price", "price surge", "soar", "spike in cost",
+    "unrest", "instabil", "turmoil",
+    "typhoon", "hurricane", "cyclone", "storm",
+    "heatwave", "heat wave", "extreme heat",
+    "raid", "seize", "seized",
+    "fiasco", "overkill", "pushback", "push back",
+    "extradition", "deport",
+  ];
+  for (const neg of extraNegative) {
+    if (matchesWord(combined, neg)) return null;
+  }
+
+  // Score each category
+  let bestCategory = "humanity";
+  let bestScore = 0;
+
+  for (const [cat, patterns] of Object.entries(POSITIVE_PATTERNS)) {
+    let score = 0;
+    for (const pat of patterns) {
+      if (matchesWord(combined, pat)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestCategory = cat;
+    }
+  }
+
+  // Dedicated positive-news sources (Good News Network, Positive News, etc.)
+  // are already editorially curated, so 1 keyword hit is enough confirmation.
+  // General news feeds (CNA, Mothership) need a stronger signal — require 2+
+  // matches, since a single generic word is too easy to false-positive on.
+  const threshold = isPositiveFeed ? 1 : 2;
+  if (bestScore < threshold) return null;
+
+  return { score: bestScore, category: bestCategory };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SUMMARY GENERATION — clean truncation to ~200 chars
+// ═══════════════════════════════════════════════════════════════════
+function makeSummary(description, maxLen = 195) {
+  if (!description) return "";
+  // Strip HTML tags
+  let clean = description.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').trim();
+  // Collapse whitespace
+  clean = clean.replace(/\s+/g, " ");
+  if (clean.length <= maxLen) return clean;
+  // Cut at last word boundary before maxLen
+  const truncated = clean.slice(0, maxLen);
+  const lastSpace = truncated.lastIndexOf(" ");
+  return (lastSpace > maxLen * 0.6 ? truncated.slice(0, lastSpace) : truncated) + "…";
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DEDUP — by title hash
+// ═══════════════════════════════════════════════════════════════════
+function makeId(title) {
+  return createHash("md5").update(title.toLowerCase().trim()).digest("hex").slice(0, 12);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN SCRAPE LOGIC
+// ═══════════════════════════════════════════════════════════════════
+async function scrapeAllFeeds() {
+  if (!OPENROUTER_API_KEY) {
+    console.log("⚠ OPENROUTER_API_KEY not set — running keyword-filter only, no LLM sentiment check.\n");
+  } else {
+    console.log("🤖 LLM sentiment verification enabled (OpenRouter).\n");
+  }
+
+  const parser = new Parser({
+    timeout: 8000,
+    headers: { "User-Agent": "JoyPulse/1.0 (positive-news-aggregator)" },
+    maxRedirects: 3,
+  });
+
+  const allArticles = [];
+  const seenIds = new Set();
+
+  // Load existing feed to merge & dedup
+  let existing = [];
+  if (existsSync(OUTPUT_PATH)) {
+    try {
+      const raw = readFileSync(OUTPUT_PATH, "utf-8");
+      const parsed = JSON.parse(raw);
+      existing = parsed.articles || [];
+      for (const a of existing) seenIds.add(a.id);
+    } catch { /* fresh start */ }
+  }
+
+  for (const feed of RSS_FEEDS) {
+    console.log(`📡 Fetching ${feed.name} …`);
+    try {
+      const result = await parser.parseURL(feed.url);
+      const items = result.items || [];
+      console.log(`   → ${items.length} items from ${feed.name}`);
+
+      for (const item of items) {
+        const title = (item.title || "").trim();
+        if (!title) continue;
+
+        const id = makeId(title);
+        if (seenIds.has(id)) continue;
+        seenIds.add(id);
+
+        const rawSummary = item.contentSnippet || item.content || item.summary || item.description || "";
+        const summary = makeSummary(rawSummary);
+
+        // Skip items with no usable summary — a bare headline with a blank
+        // body reads badly on a card and we can't verify positivity of the
+        // full story from the title alone.
+        if (!summary || summary.length < 20) continue;
+
+        const scoring = scoreArticle(title, summary, feed.isPositiveFeed === true);
+        if (!scoring) continue;
+
+        // Second-pass: ask an LLM to sanity-check the keyword filter's call.
+        // If no API key is set, or every candidate model is unavailable,
+        // fall back to trusting the keyword result rather than dropping
+        // the article entirely — degrade gracefully, don't fail the run.
+        const verdict = await classifyWithLLM(title, summary);
+        let llmVerified = false;
+        let llmReason = "";
+        let llmModel = null;
+
+        if (verdict) {
+          if (!verdict.approved) {
+            console.log(`   ✗ LLM rejected: "${title.slice(0, 60)}…" (${verdict.reason})`);
+            continue;
+          }
+          llmVerified = true;
+          llmReason = verdict.reason;
+          llmModel = verdict.model;
+        }
+
+        // Detect location from title + summary text
+        const fullText = `${title} ${summary} ${feed.name}`;
+        const loc = detectLocation(fullText);
+        const region = loc?.region || feed.region;
+        const location = loc?.location || (feed.region === "singapore" ? "Singapore" : feed.region === "asia" ? "Asia" : "World");
+
+        // Extract image
+        let imageUrl = null;
+        if (item.enclosure?.url) imageUrl = item.enclosure.url;
+        else if (item["media:content"]?.$.url) imageUrl = item["media:content"].$.url;
+        else {
+          // Try to find <img> in content
+          const imgMatch = (item.content || item["content:encoded"] || "").match(/<img[^>]+src="([^"]+)"/);
+          if (imgMatch) imageUrl = imgMatch[1];
+        }
+
+        allArticles.push({
+          id,
+          title,
+          summary,
+          source: feed.name,
+          sourceUrl: item.link || item.guid || null,
+          category: scoring.category,
+          score: scoring.score,
+          llmVerified,
+          llmReason,
+          llmModel,
+          region,
+          location,
+          imageUrl,
+          pubDate: item.isoDate || item.pubDate || new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      console.error(`   ✗ Failed to fetch ${feed.name}: ${err.message}`);
+    }
+  }
+
+  console.log(`\n✅ New positive articles found: ${allArticles.length}`);
+  const verifiedCount = allArticles.filter((a) => a.llmVerified).length;
+  if (allArticles.length > 0) {
+    console.log(`   → ${verifiedCount} LLM-verified, ${allArticles.length - verifiedCount} keyword-only`);
+  }
+
+  // Merge with existing, dedup, sort by date, cap at 300
+  const merged = [...allArticles, ...existing];
+  const dedupMap = new Map();
+  for (const a of merged) {
+    if (!dedupMap.has(a.id)) dedupMap.set(a.id, a);
+  }
+
+  const final = Array.from(dedupMap.values())
+    .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
+    .slice(0, 300);
+
+  const output = {
+    lastUpdated: new Date().toISOString(),
+    count: final.length,
+    articles: final,
+  };
+
+  writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2), "utf-8");
+  console.log(`📝 Wrote ${final.length} articles to ${OUTPUT_PATH}`);
+  console.log(`🕐 Last updated: ${output.lastUpdated}`);
+}
+
+scrapeAllFeeds().catch((err) => {
+  console.error("Fatal scrape error:", err);
+  process.exit(1);
+});
