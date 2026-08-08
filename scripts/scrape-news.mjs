@@ -136,17 +136,41 @@ async function classifyWithLLM(title, summary) {
 // RSS FEED LIST — Singapore first, then Asia, then positive-news
 // ═══════════════════════════════════════════════════════════════════
 const RSS_FEEDS = [
-  // ── Singapore ──────────────────────────────────────────────────
+  // ── Singapore (highest priority) ──────────────────────────────
   { url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6511",  name: "CNA Singapore",       region: "singapore" },
+  { url: "https://mothership.sg/feed/",                                                          name: "Mothership SG",        region: "singapore" },
+  { url: "https://www.straitstimes.com/news/singapore/rss.xml",                                  name: "Straits Times SG",     region: "singapore" },
+
+  // ── Malaysia ───────────────────────────────────────────────────
+  { url: "https://www.freemalaysiatoday.com/feed/",                                              name: "Free Malaysia Today",  region: "asia" },
+  { url: "https://www.thestar.com.my/rss/News/Nation",                                            name: "The Star Malaysia",    region: "asia" },
+
+  // ── Indonesia ──────────────────────────────────────────────────
+  { url: "https://jakartaglobe.id/feed",                                                          name: "Jakarta Globe",        region: "asia" },
+  { url: "https://en.antaranews.com/rss/",                                                        name: "Antara News",          region: "asia" },
+
+  // ── Philippines ────────────────────────────────────────────────
+  { url: "https://www.rappler.com/feed/",                                                         name: "Rappler",              region: "asia" },
+
+  // ── Thailand ───────────────────────────────────────────────────
+  { url: "https://www.bangkokpost.com/rss/data/topstories.xml",                                   name: "Bangkok Post",         region: "asia" },
+
+  // ── Vietnam ────────────────────────────────────────────────────
+  { url: "https://e.vnexpress.net/rss/news.rss",                                                  name: "VnExpress Int'l",      region: "asia" },
+
+  // ── Broader Asia ───────────────────────────────────────────────
   { url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6936",  name: "CNA Asia",             region: "asia"      },
   { url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6311",  name: "CNA World",            region: "world"     },
-  { url: "https://mothership.sg/feed/",                                                          name: "Mothership SG",        region: "singapore" },
+  { url: "https://www.thebetterindia.com/feed/",                                                 name: "The Better India",     region: "asia",      isPositiveFeed: true },
+
   // ── Dedicated positive-news sources (already curated — lower threshold) ─
   { url: "https://www.goodnewsnetwork.org/feed/",                                                name: "Good News Network",    region: "world",     isPositiveFeed: true },
   { url: "https://www.positive.news/feed/",                                                      name: "Positive News",        region: "world",     isPositiveFeed: true },
   { url: "https://www.goodgoodgood.co/articles/rss.xml",                                         name: "Good Good Good",       region: "world",     isPositiveFeed: true },
-  { url: "https://www.thebetterindia.com/feed/",                                                 name: "The Better India",     region: "asia",      isPositiveFeed: true },
   { url: "https://www.sunnyskyz.com/rss",                                                        name: "Sunny Skyz",           region: "world",     isPositiveFeed: true },
+  { url: "https://reasonstobecheerful.world/feed/",                                               name: "Reasons to be Cheerful", region: "world",   isPositiveFeed: true },
+  { url: "https://www.optimistdaily.com/feed/",                                                   name: "Optimist Daily",       region: "world",     isPositiveFeed: true },
+  { url: "https://tanksgoodnews.com/feed/",                                                        name: "Tank's Good News",     region: "world",     isPositiveFeed: true },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -489,7 +513,7 @@ async function scrapeAllFeeds() {
     console.log(`   → ${verifiedCount} LLM-verified, ${allArticles.length - verifiedCount} keyword-only`);
   }
 
-  // Merge with existing, dedup, sort by date, cap at 300
+  // Merge with existing, dedup, sort by date, cap at 500
   const merged = [...allArticles, ...existing];
   const dedupMap = new Map();
   for (const a of merged) {
@@ -498,7 +522,7 @@ async function scrapeAllFeeds() {
 
   const final = Array.from(dedupMap.values())
     .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
-    .slice(0, 300);
+    .slice(0, 500);
 
   const output = {
     lastUpdated: new Date().toISOString(),

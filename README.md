@@ -1,7 +1,7 @@
 # ☀️ JoyPulse — Real Positive News from Singapore & Asia
 
 > **A beautiful relief from the chaos.**  
-> A fully static site that scrapes 9 real RSS news feeds, filters for positivity, and deploys to GitHub Pages. No server. No database. No tracking.
+> A fully static site that scrapes 18 real RSS news feeds across Southeast Asia and beyond, filters for positivity, and deploys to GitHub Pages. No server. No database. No tracking.
 
 ![Next.js](https://img.shields.io/badge/Next.js_16-Static_Export-black?logo=next.js)
 ![GitHub Pages](https://img.shields.io/badge/Deployed_on-GitHub_Pages-blue?logo=github)
@@ -72,7 +72,7 @@ The **deploy.yml** workflow will automatically:
 - Deploy to GitHub Pages
 
 The **scrape.yml** workflow runs once daily at 1am SGT and:
-- Fetches all 9 RSS feeds
+- Fetches all 18 RSS feeds
 - Scores & filters articles (keyword pass, then LLM verification if configured)
 - Commits updated `feed.json` to the repo
 - This triggers a fresh deploy

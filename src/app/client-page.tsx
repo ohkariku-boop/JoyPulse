@@ -408,15 +408,15 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">How It Works</h3>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                JoyPulse scrapes <strong>9 real RSS news feeds</strong> twice daily — CNA Singapore, CNA Asia, Mothership, Good News Network, Positive News, Good Good Good, The Better India, and Sunny Skyz.
+                JoyPulse scrapes <strong>18 real RSS news feeds</strong> daily across Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond, plus dedicated good-news outlets.
               </p>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Each article is scored against <strong>200+ positive keywords</strong> and filtered through <strong>100+ negative patterns</strong>. Only genuinely positive stories make it here.
+                Each article is scored against <strong>200+ positive keywords</strong>, filtered through <strong>100+ negative patterns</strong>, then double-checked by an AI model for genuine positivity. Only real, verified-good stories make it here.
               </p>
               <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Feed sources</p>
                 <div className="flex flex-wrap gap-1">
-                  {["CNA Singapore", "CNA Asia", "CNA World", "Mothership SG", "Good News Network", "Positive News", "Good Good Good", "The Better India", "Sunny Skyz"].map((s) => (
+                  {["CNA Singapore", "Mothership SG", "Straits Times SG", "Free Malaysia Today", "The Star Malaysia", "Jakarta Globe", "Antara News", "Rappler", "Bangkok Post", "VnExpress Int'l", "CNA Asia", "CNA World", "The Better India", "Good News Network", "Positive News", "Good Good Good", "Sunny Skyz", "Reasons to be Cheerful", "Optimist Daily", "Tank's Good News"].map((s) => (
                     <span key={s} className="bg-white/10 text-slate-300 text-[8px] font-bold px-1.5 py-0.5 rounded">{s}</span>
                   ))}
                 </div>

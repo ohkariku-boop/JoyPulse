@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "JoyPulse – Only Good News from Singapore & Asia",
   description:
-    "A static feed of happy, exciting, and inspiring news from Singapore and Asia. Scraped from 9 real RSS sources, filtered for positivity. No server, no tracking, no negativity.",
+    "A static feed of happy, exciting, and inspiring news from Singapore and Asia. Scraped from 18 real RSS sources across Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond, filtered for positivity. No server, no tracking, no negativity.",
   keywords: [
     "good news", "happy news", "positive news", "Singapore news",
     "Asia news", "uplifting stories", "inspiring news", "feel good",
