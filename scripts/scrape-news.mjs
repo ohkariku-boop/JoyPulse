@@ -65,14 +65,36 @@ APPROVE stories that are:
 Respond with ONLY a JSON object, no other text:
 {"approved": true or false, "confidence": "high" or "medium" or "low", "reason": "one short sentence"}`;
 
+// Overall wall-clock budget for ALL LLM classification calls combined, across
+// the whole run. Once exceeded, remaining candidates fall back to keyword-only
+// results instead of queueing more LLM calls — keeps total runtime predictable
+// no matter how many articles pass the keyword filter.
+const LLM_TIME_BUDGET_MS = 12 * 60 * 1000; // 12 minutes, leaves headroom under the 20-min job timeout
+let llmBudgetExhausted = false;
+let llmBudgetStart = null;
+
 async function classifyWithLLM(title, summary) {
   if (!OPENROUTER_API_KEY) return null; // No key configured — caller falls back to keyword result
+
+  if (llmBudgetStart === null) llmBudgetStart = Date.now();
+  if (llmBudgetExhausted) return null;
+  if (Date.now() - llmBudgetStart > LLM_TIME_BUDGET_MS) {
+    llmBudgetExhausted = true;
+    console.log("   ⏱ LLM time budget exhausted — remaining articles will use keyword-only results.");
+    return null;
+  }
 
   const userPrompt = `Headline: ${title}\nSummary: ${summary}`;
 
   for (const model of CANDIDATE_MODELS) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    // IMPORTANT: this timer must stay armed through res.json(), not just the
+    // initial fetch(). fetch() resolves as soon as HEADERS arrive — if we
+    // clear the timer at that point, a stalled response BODY (a model that's
+    // slow/queued under free-tier load) has zero timeout protection and can
+    // hang indefinitely. The timer is only cleared once we're fully done
+    // with this model's response, in the finally block below.
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     try {
       const res = await fetch(OPENROUTER_URL, {
@@ -93,15 +115,13 @@ async function classifyWithLLM(title, summary) {
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
       if (!res.ok) {
         // 429 = rate limited, 402 = out of free credits, etc. — try next model.
         console.log(`   ⚠ ${model} unavailable (status ${res.status}), trying next model…`);
         continue;
       }
 
-      const data = await res.json();
+      const data = await res.json(); // still covered by the same abort signal/timer
       const raw = data?.choices?.[0]?.message?.content?.trim() || "";
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
@@ -122,8 +142,9 @@ async function classifyWithLLM(title, summary) {
         model,
       };
     } catch (err) {
-      clearTimeout(timeoutId);
       console.log(`   ⚠ ${model} failed (${err.message}), trying next model…`);
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
