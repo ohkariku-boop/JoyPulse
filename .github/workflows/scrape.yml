@@ -12,6 +12,12 @@ permissions:
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    # Hard safety cap: even with 18 feeds (8s timeout each) and LLM
+    # classification (up to 5 fallback models × 30s each per article),
+    # a healthy run should finish in well under 20 minutes. If it's still
+    # going past that, something is genuinely stuck — force-kill it rather
+    # than let it run indefinitely (as happened with run #1).
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repo
