@@ -429,8 +429,10 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             )}
           </div>
 
-          {/* RIGHT SIDEBAR */}
-          <div className="lg:col-span-4 space-y-5">
+          {/* RIGHT SIDEBAR — sticky so it stays visible alongside the article
+              list instead of ending early and leaving empty space beneath it
+              once the list runs much longer than the sidebar's own content. */}
+          <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
 
             {/* About */}
             <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-xl border border-slate-800 space-y-3 relative overflow-hidden">
