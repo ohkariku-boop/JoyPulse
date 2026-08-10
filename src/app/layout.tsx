@@ -3,16 +3,16 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "JoyPulse – Only Good News from Singapore & Asia",
+  title: "JoyPulse – Asia's Good News, in One Place",
   description:
-    "A static feed of happy, exciting, and inspiring news from Singapore and Asia. Scraped from 18 real RSS sources across Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond, filtered for positivity. No server, no tracking, no negativity.",
+    "A daily digest of real, positive stories from across Asia — Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond. Scraped from 18 real RSS sources, filtered for positivity. No server, no tracking, no negativity.",
   keywords: [
-    "good news", "happy news", "positive news", "Singapore news",
-    "Asia news", "uplifting stories", "inspiring news", "feel good",
+    "good news", "happy news", "positive news", "Asia news",
+    "Singapore news", "uplifting stories", "inspiring news", "feel good",
   ],
   openGraph: {
-    title: "JoyPulse – Only Good News from Singapore & Asia",
-    description: "Real positive stories from CNA, Mothership, Good News Network & more — zero negativity.",
+    title: "JoyPulse – Asia's Good News, in One Place",
+    description: "Real positive stories from CNA, Good News Network, Positive News & more — zero negativity.",
     type: "website",
     locale: "en_SG",
   },

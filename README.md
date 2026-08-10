@@ -1,11 +1,11 @@
-# ☀️ JoyPulse — Real Positive News from Singapore & Asia
+# ☀️ JoyPulse — Asia's Good News, in One Place
 
 > **A beautiful relief from the chaos.**  
-> A fully static site that scrapes 18 real RSS news feeds across Southeast Asia and beyond, filters for positivity, and deploys to GitHub Pages. No server. No database. No tracking.
+> A fully static site that scrapes 18 real RSS news feeds across Asia and beyond, filters for positivity, and deploys to GitHub Pages. No server. No database. No tracking.
 
 ![Next.js](https://img.shields.io/badge/Next.js_16-Static_Export-black?logo=next.js)
 ![GitHub Pages](https://img.shields.io/badge/Deployed_on-GitHub_Pages-blue?logo=github)
-![RSS](https://img.shields.io/badge/9_RSS_Feeds-Live-orange)
+![RSS](https://img.shields.io/badge/18_RSS_Feeds-Live-orange)
 
 ---
 

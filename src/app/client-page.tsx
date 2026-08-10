@@ -30,6 +30,37 @@ export interface ClientPageProps {
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
+/* DAILY QUOTE — rotates once per day, same for everyone that day,  */
+/* no backend needed. Original lines only (not attributed to real   */
+/* people) to keep this copyright-safe.                             */
+/* ═══════════════════════════════════════════════════════════════ */
+const DAILY_QUOTES: { text: string; author: string }[] = [
+  { text: "Right now, somewhere in Singapore, a hawker is giving away meals. Across Asia, a forest is being replanted. Around the world, a scientist just had a breakthrough. Focus on the good.", author: "JoyPulse" },
+  { text: "Kindness doesn't make the headlines, but it's happening in a thousand quiet places today.", author: "JoyPulse" },
+  { text: "Somewhere nearby, a stranger just helped another stranger for no reason at all. That's the world too.", author: "JoyPulse" },
+  { text: "Good news doesn't shout. It just keeps happening, one small act at a time.", author: "JoyPulse" },
+  { text: "Every day, more gets fixed, healed, planted, and shared than the headlines ever show.", author: "JoyPulse" },
+  { text: "A child learned something new today. Somewhere else, someone finally got the help they needed. Both are real.", author: "JoyPulse" },
+  { text: "The world is quietly kinder than the news makes it look.", author: "JoyPulse" },
+  { text: "One good deed doesn't need an audience to matter.", author: "JoyPulse" },
+  { text: "Progress rarely trends, but it never really stops either.", author: "JoyPulse" },
+  { text: "Somewhere today, a community rebuilt something together that felt impossible alone.", author: "JoyPulse" },
+  { text: "The good stuff is happening at the same speed as everything else — it's just quieter.", author: "JoyPulse" },
+  { text: "Hope isn't naive. It's just paying attention to a different set of facts.", author: "JoyPulse" },
+  { text: "Somebody's small act of patience today will ripple further than they'll ever know.", author: "JoyPulse" },
+  { text: "There is always, somewhere, a reason to smile today — the trick is just looking for it.", author: "JoyPulse" },
+  { text: "The news cycle moves fast. Genuine goodness moves quietly, and it's still winning.", author: "JoyPulse" },
+];
+
+function getDailyQuote(): { text: string; author: string } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diffMs = now.getTime() - start.getTime();
+  const dayOfYear = Math.floor(diffMs / 86400000);
+  return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
 /* HELPERS                                                         */
 /* ═══════════════════════════════════════════════════════════════ */
 function timeAgo(dateStr: string): string {
@@ -163,6 +194,8 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     return t;
   }, [myReactions]);
 
+  const dailyQuote = useMemo(() => getDailyQuote(), []);
+
   /* ── filtering & sorting ───────────────────────────────────── */
   const filtered = useMemo(() => {
     let list = articles;
@@ -220,7 +253,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             <div className="bg-amber-400 p-1.5 rounded-xl text-slate-900 shadow-sm animate-pulse-glow"><Sun className="h-5 w-5 stroke-[2.5]" /></div>
             <div>
               <span className="text-base sm:text-lg font-black tracking-tight text-slate-900">JoyPulse<span className="text-amber-500">.</span></span>
-              <p className="text-[8px] sm:text-[9px] font-semibold text-slate-400 uppercase tracking-widest -mt-1">Singapore & Asia • Good News Only</p>
+              <p className="text-[8px] sm:text-[9px] font-semibold text-slate-400 uppercase tracking-widest -mt-1">Asia • Good News Only</p>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-4 text-[10px]">
@@ -245,11 +278,10 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             {articles.length} Real Positive Stories • Sourced from {new Set(articles.map((a) => a.source)).size} Sources
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-[1.1] max-w-2xl mx-auto">
-            Only good things happening in{" "}
-            <span className="bg-gradient-to-r from-amber-500 to-rose-500 bg-clip-text text-transparent">Singapore & Asia</span>
+            <span className="bg-gradient-to-r from-amber-500 to-rose-500 bg-clip-text text-transparent">Asia&rsquo;s</span> good news, in one place
           </h1>
           <p className="mt-2 text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-            Real stories from CNA, Mothership, Good News Network, Positive News, The Better India & more — filtered by AI to show only the positive.
+            A daily digest of real, positive stories from CNA, Good News Network, Positive News, The Better India & more.
           </p>
 
           {/* Search */}
@@ -408,7 +440,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">How It Works</h3>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                JoyPulse scrapes <strong>18 real RSS news feeds</strong> daily across Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond, plus dedicated good-news outlets.
+                JoyPulse scrapes <strong>18 real RSS news feeds</strong> daily across Asia — Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond — plus dedicated good-news outlets.
               </p>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Each article is scored against <strong>200+ positive keywords</strong>, filtered through <strong>100+ negative patterns</strong>, then double-checked by an AI model for genuine positivity. Only real, verified-good stories make it here.
@@ -431,9 +463,9 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               <div className="flex items-center gap-1.5 text-amber-500"><Gift className="h-4 w-4" /><h3 className="text-[9px] uppercase font-bold tracking-widest text-slate-400">Daily Positivity Capsule</h3></div>
               <div className="pl-3 border-l-3 border-amber-400 py-0.5">
                 <p className="text-[11px] font-semibold text-slate-700 italic leading-relaxed">
-                  "Right now, somewhere in Singapore, a hawker is giving away meals. Across Asia, a forest is being replanted. Around the world, a scientist just had a breakthrough. Focus on the good."
+                  &ldquo;{dailyQuote.text}&rdquo;
                 </p>
-                <span className="block text-[9px] font-bold text-slate-400 mt-1">— JoyPulse</span>
+                <span className="block text-[9px] font-bold text-slate-400 mt-1">— {dailyQuote.author}</span>
               </div>
             </div>
 
