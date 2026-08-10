@@ -143,6 +143,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   // detail modal
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   // floating emojis
   const [floats, setFloats] = useState<{ id: number; x: number; y: number; emoji: string }[]>([]);
   // toast
@@ -438,30 +439,38 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               once the list runs much longer than the sidebar's own content. */}
           <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
 
-            {/* About */}
-            <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-xl border border-slate-800 space-y-3 relative overflow-hidden">
+            {/* About / How It Works — collapsible, starts closed */}
+            <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 relative overflow-hidden">
               <div className="absolute top-0 right-0 h-24 w-24 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
-              <div className="flex items-center gap-1.5">
-                <span className="flex h-2.5 w-2.5 relative"><span className="animate-ping absolute h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative rounded-full h-2.5 w-2.5 bg-emerald-500" /></span>
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">How It Works</h3>
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                JoyPulse scrapes <strong>18 real RSS news feeds</strong> daily across Asia — Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond — plus dedicated good-news outlets.
-              </p>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Each article is scored against <strong>200+ positive keywords</strong>, filtered through <strong>100+ negative patterns</strong>, then double-checked by an AI model for genuine positivity. Only real, verified-good stories make it here.
-              </p>
-              <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Feed sources</p>
-                <div className="flex flex-wrap gap-1">
-                  {["CNA Singapore", "Mothership SG", "Straits Times SG", "Free Malaysia Today", "The Star Malaysia", "Jakarta Globe", "Antara News", "Rappler", "Bangkok Post", "VnExpress Int'l", "CNA Asia", "CNA World", "The Better India", "Good News Network", "Positive News", "Good Good Good", "Sunny Skyz", "Reasons to be Cheerful", "Optimist Daily", "Tank's Good News"].map((s) => (
-                    <span key={s} className="bg-white/10 text-slate-300 text-[8px] font-bold px-1.5 py-0.5 rounded">{s}</span>
-                  ))}
+              <button onClick={() => setHowItWorksOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-1.5 p-5 text-left">
+                <div className="flex items-center gap-1.5">
+                  <span className="flex h-2.5 w-2.5 relative"><span className="animate-ping absolute h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative rounded-full h-2.5 w-2.5 bg-emerald-500" /></span>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">How It Works</h3>
                 </div>
-              </div>
-              <div className="text-[9px] text-slate-500 flex items-center gap-1">
-                <Clock className="h-2.5 w-2.5" /> Last scraped: {new Date(lastUpdated).toLocaleString()}
-              </div>
+                <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${howItWorksOpen ? "rotate-180" : ""}`} />
+              </button>
+              {howItWorksOpen && (
+                <div className="px-5 pb-5 space-y-3">
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    JoyPulse scrapes <strong>18 real RSS news feeds</strong> daily across Asia — Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond — plus dedicated good-news outlets.
+                  </p>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Each article is scored against <strong>200+ positive keywords</strong>, filtered through <strong>100+ negative patterns</strong>, then double-checked by an AI model for genuine positivity. Only real, verified-good stories make it here.
+                  </p>
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Feed sources</p>
+                    <div className="flex flex-wrap gap-1">
+                      {["CNA Singapore", "Mothership SG", "Straits Times SG", "Free Malaysia Today", "Jakarta Globe", "Antara News", "Rappler", "Bangkok Post", "VnExpress Int'l", "CNA Asia", "CNA World", "The Better India", "Good News Network", "Positive News", "Good Good Good", "Reasons to be Cheerful", "Optimist Daily", "Tank's Good News"].map((s) => (
+                        <span key={s} className="bg-white/10 text-slate-300 text-[8px] font-bold px-1.5 py-0.5 rounded">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-[9px] text-slate-500 flex items-center gap-1">
+                    <Clock className="h-2.5 w-2.5" /> Last scraped: {new Date(lastUpdated).toLocaleString()}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Positivity capsule */}
