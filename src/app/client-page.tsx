@@ -262,6 +262,46 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         </div>
       </header>
 
+      {/* ── SECTION NAV — like a real news site's category strip, sticky
+           directly under the masthead (CNN/BBC-style), instead of filter
+           chips buried inside the content column. ─────────────────── */}
+      <div className="sticky top-14 z-10 bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 sm:gap-5 overflow-x-auto no-scrollbar">
+              {availableCategories.map((id) => {
+                const meta = CATEGORY_META[id] || CATEGORY_META.all;
+                const sel = selectedCategory === id;
+                return (
+                  <button key={id} onClick={() => { setSelectedCategory(id); setShowCount(20); }}
+                    className={`shrink-0 py-3 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap border-b-2 transition ${
+                      sel ? "border-amber-500 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-800"
+                    }`}>
+                    {meta.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="hidden md:flex items-center gap-1 shrink-0 py-2">
+              {REGION_TABS.map((r) => (
+                <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(20); }}
+                  className={`px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition ${
+                    selectedRegion === r.id ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100"
+                  }`}>{r.label}</button>
+              ))}
+            </div>
+          </div>
+          <div className="md:hidden flex items-center gap-1 overflow-x-auto no-scrollbar pb-2">
+            {REGION_TABS.map((r) => (
+              <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(20); }}
+                className={`shrink-0 px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition ${
+                  selectedRegion === r.id ? "bg-slate-900 text-white" : "text-slate-500 bg-slate-50"
+                }`}>{r.label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* ── HERO ───────────────────────────────────────────────── */}
       <section className="bg-gradient-to-b from-amber-50 via-white to-slate-50 py-8 md:py-12 border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -300,33 +340,6 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
           {/* LEFT — feed */}
           <div className="lg:col-span-8 space-y-4">
-
-            {/* Region tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-              {REGION_TABS.map((r) => (
-                <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(20); }}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition border ${
-                    selectedRegion === r.id ? "bg-slate-900 text-white border-slate-900 shadow-sm" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                  }`}>{r.label}</button>
-              ))}
-            </div>
-
-            {/* Category pills */}
-            <div className="flex overflow-x-auto gap-1 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
-              {availableCategories.map((id) => {
-                const meta = CATEGORY_META[id] || CATEGORY_META.all;
-                const Icon = meta.icon;
-                const sel = selectedCategory === id;
-                return (
-                  <button key={id} onClick={() => { setSelectedCategory(id); setShowCount(20); }}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-[10px] font-bold whitespace-nowrap transition ${
-                      sel ? "bg-slate-900 border-slate-900 text-white shadow-sm" : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                    }`}>
-                    <Icon className={`h-3 w-3 ${sel ? "text-amber-400" : ""}`} />{meta.label}
-                  </button>
-                );
-              })}
-            </div>
 
             {/* Count */}
             <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
