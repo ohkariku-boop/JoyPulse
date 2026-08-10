@@ -164,10 +164,12 @@ const RSS_FEEDS = [
 
   // ── Malaysia ───────────────────────────────────────────────────
   { url: "https://www.freemalaysiatoday.com/feed/",                                              name: "Free Malaysia Today",  region: "asia" },
-  { url: "https://www.thestar.com.my/rss/News/Nation",                                            name: "The Star Malaysia",    region: "asia" },
+  // NOTE: "The Star Malaysia" removed — the guessed URL 404'd and I don't have
+  // a network-verified working RSS URL for them. Free Malaysia Today still
+  // covers Malaysia.
 
   // ── Indonesia ──────────────────────────────────────────────────
-  { url: "https://jakartaglobe.id/feed",                                                          name: "Jakarta Globe",        region: "asia" },
+  { url: "https://jakartaglobe.id/feed/",                                                         name: "Jakarta Globe",        region: "asia" }, // NOTE: unverified — original URL 404'd, this is a best-guess retry
   { url: "https://en.antaranews.com/rss/",                                                        name: "Antara News",          region: "asia" },
 
   // ── Philippines ────────────────────────────────────────────────
@@ -188,7 +190,8 @@ const RSS_FEEDS = [
   { url: "https://www.goodnewsnetwork.org/feed/",                                                name: "Good News Network",    region: "world",     isPositiveFeed: true },
   { url: "https://www.positive.news/feed/",                                                      name: "Positive News",        region: "world",     isPositiveFeed: true },
   { url: "https://www.goodgoodgood.co/articles/rss.xml",                                         name: "Good Good Good",       region: "world",     isPositiveFeed: true },
-  { url: "https://www.sunnyskyz.com/rss",                                                        name: "Sunny Skyz",           region: "world",     isPositiveFeed: true },
+  // NOTE: "Sunny Skyz" removed — 404'd twice, and redundant with 6 other
+  // dedicated positive-news sources already in this list.
   { url: "https://reasonstobecheerful.world/feed/",                                               name: "Reasons to be Cheerful", region: "world",   isPositiveFeed: true },
   { url: "https://www.optimistdaily.com/feed/",                                                   name: "Optimist Daily",       region: "world",     isPositiveFeed: true },
   { url: "https://tanksgoodnews.com/feed/",                                                        name: "Tank's Good News",     region: "world",     isPositiveFeed: true },
@@ -416,6 +419,36 @@ function makeId(title) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// XML SANITIZATION — some feeds (e.g. Mothership SG, Antara News) ship
+// mildly invalid XML: bare "&" characters that aren't valid entities, or
+// stray control characters. Rather than failing outright on these feeds,
+// clean the raw XML before handing it to the parser.
+// ═══════════════════════════════════════════════════════════════════
+function sanitizeXml(xml) {
+  // Escape bare "&" that isn't already part of a valid XML entity
+  let cleaned = xml.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, "&amp;");
+  // Strip invalid XML control characters (keep tab \x09, LF \x0A, CR \x0D)
+  cleaned = cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+  return cleaned;
+}
+
+async function fetchAndParseFeed(parser, url) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "JoyPulse/1.0 (positive-news-aggregator)" },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Status code ${res.status}`);
+    const rawXml = await res.text();
+    return await parser.parseString(sanitizeXml(rawXml));
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // MAIN SCRAPE LOGIC
 // ═══════════════════════════════════════════════════════════════════
 async function scrapeAllFeeds() {
@@ -425,11 +458,10 @@ async function scrapeAllFeeds() {
     console.log("🤖 LLM sentiment verification enabled (OpenRouter).\n");
   }
 
-  const parser = new Parser({
-    timeout: 8000,
-    headers: { "User-Agent": "JoyPulse/1.0 (positive-news-aggregator)" },
-    maxRedirects: 3,
-  });
+  // Note: timeout/headers/maxRedirects now live in fetchAndParseFeed() above,
+  // since we do our own fetch + XML sanitization before handing raw text to
+  // the parser (parser.parseString doesn't take these options).
+  const parser = new Parser();
 
   const allArticles = [];
   const seenIds = new Set();
@@ -448,7 +480,7 @@ async function scrapeAllFeeds() {
   for (const feed of RSS_FEEDS) {
     console.log(`📡 Fetching ${feed.name} …`);
     try {
-      const result = await parser.parseURL(feed.url);
+      const result = await fetchAndParseFeed(parser, feed.url);
       const items = result.items || [];
       console.log(`   → ${items.length} items from ${feed.name}`);
 
