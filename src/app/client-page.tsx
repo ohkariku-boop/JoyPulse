@@ -76,14 +76,14 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-const CATEGORY_META: Record<string, { icon: typeof Sun; label: string; pillColor: string }> = {
-  all:      { icon: Sun,       label: "All Stories",   pillColor: "bg-amber-50 text-amber-700 border-amber-200"     },
-  humanity: { icon: Heart,     label: "Kindness",      pillColor: "bg-rose-50 text-rose-700 border-rose-200"        },
-  science:  { icon: Cpu,       label: "Science & Tech", pillColor: "bg-blue-50 text-blue-700 border-blue-200"       },
-  nature:   { icon: Globe,     label: "Nature",        pillColor: "bg-emerald-50 text-emerald-700 border-emerald-200"},
-  sports:   { icon: Trophy,    label: "Sports",        pillColor: "bg-purple-50 text-purple-700 border-purple-200"  },
-  arts:     { icon: Music,     label: "Arts & Culture", pillColor: "bg-pink-50 text-pink-700 border-pink-200"       },
-  business: { icon: Briefcase, label: "Business",      pillColor: "bg-teal-50 text-teal-700 border-teal-200"        },
+const CATEGORY_META: Record<string, { icon: typeof Sun; label: string; pillColor: string; textColor: string }> = {
+  all:      { icon: Sun,       label: "All Stories",   pillColor: "bg-amber-50 text-amber-700 border-amber-200",      textColor: "text-amber-600"   },
+  humanity: { icon: Heart,     label: "Kindness",      pillColor: "bg-rose-50 text-rose-700 border-rose-200",         textColor: "text-rose-600"    },
+  science:  { icon: Cpu,       label: "Science & Tech", pillColor: "bg-blue-50 text-blue-700 border-blue-200",        textColor: "text-blue-600"    },
+  nature:   { icon: Globe,     label: "Nature",        pillColor: "bg-emerald-50 text-emerald-700 border-emerald-200", textColor: "text-emerald-600" },
+  sports:   { icon: Trophy,    label: "Sports",        pillColor: "bg-purple-50 text-purple-700 border-purple-200",   textColor: "text-purple-600"  },
+  arts:     { icon: Music,     label: "Arts & Culture", pillColor: "bg-pink-50 text-pink-700 border-pink-200",        textColor: "text-pink-600"    },
+  business: { icon: Briefcase, label: "Business",      pillColor: "bg-teal-50 text-teal-700 border-teal-200",         textColor: "text-teal-600"    },
 };
 
 const REGION_TABS = [
@@ -238,14 +238,6 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         <span key={f.id} className="fixed pointer-events-none z-50 text-3xl animate-float-up select-none" style={{ left: f.x, top: f.y }}>{f.emoji}</span>
       ))}
 
-      {/* ── TICKER ─────────────────────────────────────────────── */}
-      <div className="bg-amber-500 text-slate-950 text-[10px] font-bold uppercase tracking-wider py-2 overflow-hidden relative z-30">
-        <div className="animate-marquee whitespace-nowrap flex items-center gap-8">
-          {articles.slice(0, 10).map((a) => <span key={`t1-${a.id}`}>🌟 {a.title}</span>)}
-          {articles.slice(0, 10).map((a) => <span key={`t2-${a.id}`}>🌟 {a.title}</span>)}
-        </div>
-      </div>
-
       {/* ── HEADER ─────────────────────────────────────────────── */}
       <header className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-slate-100 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-14">
@@ -354,61 +346,60 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             )}
 
             {/* CARDS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
               {visible.map((a) => {
                 const rx = myReactions[a.id] || { happy: 0, heart: 0, celebrate: 0, mindblown: 0 };
                 const totalRx = rx.happy + rx.heart + rx.celebrate + rx.mindblown;
                 const isSaved = bookmarks.has(a.id);
                 const catMeta = CATEGORY_META[a.category] || CATEGORY_META.humanity;
+                const regionLabel = a.region === "singapore" ? "Singapore" : a.region === "asia" ? "Asia" : "World";
 
                 return (
                   <article key={a.id}
-                    className="group bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(15,23,42,0.03)] hover:shadow-[0_8px_24px_rgba(15,23,42,0.08)] transition-all duration-300 overflow-hidden flex flex-col hover:-translate-y-0.5">
+                    className="group bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col">
 
                     {/* Image */}
-                    <div className="relative h-40 bg-slate-100 overflow-hidden shrink-0">
+                    <div className="relative h-32 bg-slate-100 overflow-hidden shrink-0">
                       <img src={a.imageUrl || placeholderFor(a.id)} alt="" loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
                         onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(a.id); }} />
-                      <span className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-slate-700 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                        <MapPin className="h-2 w-2" />{a.location}
-                      </span>
                       <button onClick={(e) => { e.stopPropagation(); toggleBookmark(a.id); }}
-                        className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow-sm hover:bg-white transition">
+                        className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1 rounded-md shadow-sm hover:bg-white transition">
                         {isSaved ? <BookmarkCheck className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> : <Bookmark className="h-3.5 w-3.5 text-slate-400" />}
                       </button>
                     </div>
 
                     {/* Content */}
-                    <div className="p-3.5 flex-grow flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1 text-[9px] flex-wrap">
-                        <span className={`px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border ${
-                          a.region === "singapore" ? "bg-red-50 text-red-600 border-red-100" : a.region === "asia" ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-slate-50 text-slate-600 border-slate-100"
-                        }`}>{a.region === "singapore" ? "🇸🇬 SG" : a.region === "asia" ? "🌏 Asia" : "🌍 World"}</span>
-                        <span className={`px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border ${catMeta.pillColor}`}>{a.category}</span>
-                        <span className="text-slate-400 ml-auto flex items-center gap-0.5"><Clock className="h-2 w-2" />{timeAgo(a.pubDate)}</span>
+                    <div className="p-3 flex-grow flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-wider text-slate-400">
+                        <span>{regionLabel}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className={catMeta.textColor}>{a.category}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="flex items-center gap-0.5"><MapPin className="h-2 w-2" />{a.location}</span>
+                        <span className="ml-auto flex items-center gap-0.5 normal-case font-semibold text-slate-400"><Clock className="h-2 w-2" />{timeAgo(a.pubDate)}</span>
                       </div>
 
-                      <h3 className="text-[13px] font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-amber-600 transition-colors">{a.title}</h3>
-                      <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">{a.summary}</p>
-                      <div className="text-[8px] text-slate-400 font-semibold">via {a.source}</div>
+                      <h3 className="font-serif text-[15px] font-bold text-slate-900 leading-tight line-clamp-2 group-hover:text-amber-700 transition-colors">{a.title}</h3>
+                      <p className="text-[10.5px] text-slate-500 line-clamp-2 leading-relaxed">{a.summary}</p>
+                      <div className="text-[8px] text-slate-400 font-semibold uppercase tracking-wide">via {a.source}</div>
                     </div>
 
                     {/* Footer */}
-                    <div className="px-3.5 pb-3 pt-1 border-t border-slate-50 flex items-center justify-between">
+                    <div className="px-3 pb-2.5 pt-1.5 border-t border-slate-100 flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         <button onClick={(e) => { e.stopPropagation(); addReaction(a.id, "happy", e); }}
-                          className="flex items-center gap-0.5 bg-amber-50 hover:bg-amber-100 text-amber-700 px-2 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 border border-amber-100/50">
+                          className="flex items-center gap-0.5 hover:bg-amber-50 text-slate-500 hover:text-amber-700 px-1.5 py-0.5 rounded-md text-[10px] font-bold transition active:scale-95">
                           😄 {totalRx > 0 && <span className="font-mono">{totalRx}</span>}
                         </button>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => setSelectedId(a.id)} className="text-slate-400 hover:text-amber-500 font-bold text-[10px] flex items-center gap-0.5 transition">
+                        <button onClick={() => setSelectedId(a.id)} className="text-slate-400 hover:text-amber-600 font-bold text-[10px] flex items-center gap-0.5 transition">
                           More <ArrowRight className="h-3 w-3" />
                         </button>
                         {a.sourceUrl && (
                           <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                            className="text-blue-500 hover:text-blue-600 transition"><ExternalLink className="h-3 w-3" /></a>
+                            className="text-slate-400 hover:text-blue-600 transition"><ExternalLink className="h-3 w-3" /></a>
                         )}
                       </div>
                     </div>
