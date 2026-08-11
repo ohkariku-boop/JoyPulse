@@ -303,6 +303,18 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         </div>
       </div>
 
+      {/* ── DAILY QUOTE BANNER — moved here from the sidebar per request,
+           sits right below the section nav, full width. ─────────────── */}
+      <div className="bg-amber-50 border-b border-amber-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-2.5">
+          <Gift className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+          <p className="text-[11px] text-amber-900 leading-snug">
+            <span className="italic font-semibold">&ldquo;{dailyQuote.text}&rdquo;</span>
+            <span className="text-amber-600 font-bold not-italic"> — {dailyQuote.author}</span>
+          </p>
+        </div>
+      </div>
+
       {/* ── HERO ───────────────────────────────────────────────── */}
       <section className="bg-gradient-to-b from-amber-50 via-white to-slate-50 py-8 md:py-12 border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -337,16 +349,26 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
       {/* ── MAIN ───────────────────────────────────────────────── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-          {/* LEFT — feed */}
-          <div className="lg:col-span-8 space-y-4">
+        <div className="space-y-4">
 
             {/* Count */}
             <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
               <span><span className="font-black text-slate-800">{filtered.length}</span> stories match</span>
               <span className="flex items-center gap-1"><Compass className="h-3 w-3" />Sources: CNA, Good News Network, Positive News & more</span>
             </div>
+
+            {/* Saved articles — compact horizontal shelf, only shows when non-empty */}
+            {bookmarks.size > 0 && (
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 flex items-center gap-3 overflow-x-auto no-scrollbar">
+                <span className="shrink-0 flex items-center gap-1 text-[9px] uppercase font-bold tracking-widest text-slate-400"><BookmarkCheck className="h-3 w-3 text-amber-500" />Saved</span>
+                {articles.filter((a) => bookmarks.has(a.id)).slice(0, 10).map((a) => (
+                  <button key={a.id} onClick={() => setSelectedId(a.id)}
+                    className="shrink-0 max-w-[180px] text-left bg-slate-50 hover:bg-amber-50 px-2.5 py-1.5 rounded-lg border border-slate-100 transition">
+                    <p className="text-[10px] font-bold text-slate-800 line-clamp-1">{a.title}</p>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Empty state */}
             {filtered.length === 0 && (
@@ -360,7 +382,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             )}
 
             {/* CARDS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3.5">
               {visible.map((a) => {
                 const rx = myReactions[a.id] || { happy: 0, heart: 0, celebrate: 0, mindblown: 0 };
                 const totalRx = rx.happy + rx.heart + rx.celebrate + rx.mindblown;
@@ -432,92 +454,45 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 </button>
               </div>
             )}
-          </div>
+        </div>
+      </main>
 
-          {/* RIGHT SIDEBAR — sticky so it stays visible alongside the article
-              list instead of ending early and leaving empty space beneath it
-              once the list runs much longer than the sidebar's own content. */}
-          <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
-
-            {/* About / How It Works — collapsible, starts closed */}
-            <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 relative overflow-hidden">
-              <div className="absolute top-0 right-0 h-24 w-24 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
-              <button onClick={() => setHowItWorksOpen((v) => !v)}
-                className="w-full flex items-center justify-between gap-1.5 p-5 text-left">
-                <div className="flex items-center gap-1.5">
-                  <span className="flex h-2.5 w-2.5 relative"><span className="animate-ping absolute h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative rounded-full h-2.5 w-2.5 bg-emerald-500" /></span>
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">How It Works</h3>
-                </div>
-                <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${howItWorksOpen ? "rotate-180" : ""}`} />
-              </button>
-              {howItWorksOpen && (
-                <div className="px-5 pb-5 space-y-3">
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    JoyPulse scrapes <strong>18 real RSS news feeds</strong> daily across Asia — Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond — plus dedicated good-news outlets.
-                  </p>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Each article is scored against <strong>200+ positive keywords</strong>, filtered through <strong>100+ negative patterns</strong>, then double-checked by an AI model for genuine positivity. Only real, verified-good stories make it here.
-                  </p>
-                  <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Feed sources</p>
-                    <div className="flex flex-wrap gap-1">
-                      {["CNA Singapore", "Mothership SG", "Straits Times SG", "Free Malaysia Today", "Jakarta Globe", "Antara News", "Rappler", "Bangkok Post", "VnExpress Int'l", "CNA Asia", "CNA World", "The Better India", "Good News Network", "Positive News", "Good Good Good", "Reasons to be Cheerful", "Optimist Daily", "Tank's Good News"].map((s) => (
-                        <span key={s} className="bg-white/10 text-slate-300 text-[8px] font-bold px-1.5 py-0.5 rounded">{s}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="text-[9px] text-slate-500 flex items-center gap-1">
-                    <Clock className="h-2.5 w-2.5" /> Last scraped: {new Date(lastUpdated).toLocaleString()}
-                  </div>
-                </div>
-              )}
+      {/* ── FOOTER — How It Works lives here now, collapsible, so the main
+           screen stays filled with articles instead of sidebar chrome. ── */}
+      <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+        <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 relative overflow-hidden">
+          <div className="absolute top-0 right-0 h-24 w-24 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+          <button onClick={() => setHowItWorksOpen((v) => !v)}
+            className="w-full flex items-center justify-between gap-1.5 p-5 text-left">
+            <div className="flex items-center gap-1.5">
+              <span className="flex h-2.5 w-2.5 relative"><span className="animate-ping absolute h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative rounded-full h-2.5 w-2.5 bg-emerald-500" /></span>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">How It Works</h3>
             </div>
-
-            {/* Positivity capsule */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-2.5">
-              <div className="flex items-center gap-1.5 text-amber-500"><Gift className="h-4 w-4" /><h3 className="text-[9px] uppercase font-bold tracking-widest text-slate-400">Daily Positivity Capsule</h3></div>
-              <div className="pl-3 border-l-3 border-amber-400 py-0.5">
-                <p className="text-[11px] font-semibold text-slate-700 italic leading-relaxed">
-                  &ldquo;{dailyQuote.text}&rdquo;
-                </p>
-                <span className="block text-[9px] font-bold text-slate-400 mt-1">— {dailyQuote.author}</span>
-              </div>
-            </div>
-
-            {/* Your stats */}
-            <div className="bg-gradient-to-tr from-slate-900 to-slate-950 text-white rounded-2xl p-4 shadow-xl border border-slate-800 space-y-3">
-              <h3 className="text-[9px] font-bold uppercase tracking-widest text-amber-400">Your Activity (This Browser)</h3>
-              <div className="grid grid-cols-2 gap-2 text-center">
-                <div className="bg-white/5 rounded-xl p-2.5 border border-white/10"><p className="text-lg font-black text-amber-400">{totalMyReactions}</p><p className="text-[8px] text-slate-400 font-bold uppercase">Reactions</p></div>
-                <div className="bg-white/5 rounded-xl p-2.5 border border-white/10"><p className="text-lg font-black text-rose-400">{bookmarks.size}</p><p className="text-[8px] text-slate-400 font-bold uppercase">Saved</p></div>
-              </div>
-              <p className="text-[9px] text-slate-500 leading-relaxed">All reactions and bookmarks are saved locally in your browser. No accounts needed — your positivity is yours.</p>
-            </div>
-
-            {/* Saved articles */}
-            {bookmarks.size > 0 && (
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-2.5">
-                <h3 className="text-[9px] uppercase font-bold tracking-widest text-slate-400 flex items-center gap-1"><BookmarkCheck className="h-3 w-3 text-amber-500" />Saved Stories</h3>
-                <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                  {articles.filter((a) => bookmarks.has(a.id)).slice(0, 10).map((a) => (
-                    <button key={a.id} onClick={() => setSelectedId(a.id)} className="w-full text-left bg-slate-50 hover:bg-amber-50 p-2 rounded-lg border border-slate-100 transition">
-                      <p className="text-[10px] font-bold text-slate-800 line-clamp-1">{a.title}</p>
-                      <p className="text-[8px] text-slate-400">{a.source} • {timeAgo(a.pubDate)}</p>
-                    </button>
+            <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${howItWorksOpen ? "rotate-180" : ""}`} />
+          </button>
+          {howItWorksOpen && (
+            <div className="px-5 pb-5 space-y-3">
+              <p className="text-xs text-slate-300 leading-relaxed">
+                JoyPulse scrapes <strong>18 real RSS news feeds</strong> daily across Asia — Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond — plus dedicated good-news outlets.
+              </p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Each article is scored against <strong>200+ positive keywords</strong>, filtered through <strong>100+ negative patterns</strong>, then double-checked by an AI model for genuine positivity. Only real, verified-good stories make it here.
+              </p>
+              <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Feed sources</p>
+                <div className="flex flex-wrap gap-1">
+                  {["CNA Singapore", "Mothership SG", "Straits Times SG", "Free Malaysia Today", "Jakarta Globe", "Antara News", "Rappler", "Bangkok Post", "VnExpress Int'l", "CNA Asia", "CNA World", "The Better India", "Good News Network", "Positive News", "Good Good Good", "Reasons to be Cheerful", "Optimist Daily", "Tank's Good News"].map((s) => (
+                    <span key={s} className="bg-white/10 text-slate-300 text-[8px] font-bold px-1.5 py-0.5 rounded">{s}</span>
                   ))}
                 </div>
               </div>
-            )}
-
-            {/* Mobile stats */}
-            <div className="grid grid-cols-3 gap-1.5 md:hidden">
-              <div className="bg-white p-2 rounded-lg border border-slate-100 text-center"><p className="text-[7px] text-slate-400 uppercase font-bold">Reactions</p><p className="text-xs font-black text-amber-500">{totalMyReactions}</p></div>
-              <div className="bg-white p-2 rounded-lg border border-slate-100 text-center"><p className="text-[7px] text-slate-400 uppercase font-bold">Saved</p><p className="text-xs font-black text-rose-500">{bookmarks.size}</p></div>
-              <div className="bg-white p-2 rounded-lg border border-slate-100 text-center"><p className="text-[7px] text-slate-400 uppercase font-bold">Stories</p><p className="text-xs font-black text-slate-800">{articles.length}</p></div>
+              <div className="text-[9px] text-slate-500 flex items-center gap-1">
+                <Clock className="h-2.5 w-2.5" /> Last scraped: {new Date(lastUpdated).toLocaleString()}
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      </main>
+      </footer>
 
       {/* ── FOOTER ─────────────────────────────────────────────── */}
       <footer className="bg-slate-900 text-white mt-12 border-t border-slate-800 py-8">
