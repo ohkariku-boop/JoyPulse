@@ -415,7 +415,12 @@ function makeSummary(description, maxLen = 195) {
 // DEDUP — by title hash
 // ═══════════════════════════════════════════════════════════════════
 function makeId(title) {
-  return createHash("md5").update(title.toLowerCase().trim()).digest("hex").slice(0, 12);
+  // Normalize entity encoding before hashing — otherwise the same article
+  // can get two different IDs across runs if one XML parse left "&amp;"
+  // un-decoded and another correctly decoded it to "&". Found via a live
+  // duplicate: "...Water & Money" vs "...Water &amp; Money" hashing differently.
+  const normalized = title.toLowerCase().trim().replace(/&amp;/g, "&");
+  return createHash("md5").update(normalized).digest("hex").slice(0, 12);
 }
 
 // ═══════════════════════════════════════════════════════════════════

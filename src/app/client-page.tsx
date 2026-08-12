@@ -5,6 +5,7 @@ import {
   Sun, Heart, Sparkles, Cpu, Globe, Trophy, Music, Search,
   X, ArrowRight, Compass, Gift, ExternalLink, MapPin,
   Clock, Briefcase, Bookmark, BookmarkCheck, ChevronDown,
+  Star, TrendingUp,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════ */
@@ -18,6 +19,7 @@ interface FeedArticle {
   sourceUrl: string | null;
   category: string;
   score: number;
+  llmVerified?: boolean;
   region: string;
   location: string;
   imageUrl: string | null;
@@ -215,6 +217,57 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
   const visible = filtered.slice(0, showCount);
   const selectedArticle = selectedId ? articles.find((a) => a.id === selectedId) || null : null;
+
+  /* ── Today's Top Story / Best of the Week / Joy Meter ─────────
+     Combined score: LLM-verified stories rank far above keyword-only
+     ones (they've had a real contextual check, not just pattern
+     matching), keyword score is the tiebreaker within each tier. */
+  const combinedScore = useCallback((a: FeedArticle) => (a.llmVerified ? 1000 : 0) + a.score, []);
+
+  const todaysArticles = useMemo(() => {
+    if (articles.length === 0) return [];
+    const latestDay = new Date(articles[0].pubDate).toDateString();
+    const sameDay = articles.filter((a) => new Date(a.pubDate).toDateString() === latestDay);
+    return sameDay.length > 0 ? sameDay : articles.slice(0, 20);
+  }, [articles]);
+
+  const topStory = useMemo(() => {
+    const pool = todaysArticles.length > 0 ? todaysArticles : articles;
+    if (pool.length === 0) return null;
+    return [...pool].sort((a, b) => {
+      const diff = combinedScore(b) - combinedScore(a);
+      return diff !== 0 ? diff : new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
+    })[0];
+  }, [todaysArticles, articles, combinedScore]);
+
+  const bestOfWeek = useMemo(() => {
+    const weekAgo = Date.now() - 7 * 86400000;
+    const seenTitles = new Set<string>();
+    const normalize = (s: string) => s.toLowerCase().replace(/&amp;/g, "&").replace(/[^a-z0-9]+/g, " ").trim();
+    if (topStory) seenTitles.add(normalize(topStory.title));
+    return [...articles]
+      .filter((a) => new Date(a.pubDate).getTime() >= weekAgo && a.id !== topStory?.id)
+      .sort((a, b) => combinedScore(b) - combinedScore(a))
+      .filter((a) => {
+        const key = normalize(a.title);
+        if (seenTitles.has(key)) return false;
+        seenTitles.add(key);
+        return true;
+      })
+      .slice(0, 8);
+  }, [articles, topStory, combinedScore]);
+
+  const joyMeter = useMemo(() => {
+    const pool = todaysArticles.length >= 3 ? todaysArticles : articles.slice(0, 20);
+    if (pool.length === 0) return { score: 0, label: "Warming Up", emoji: "🌱" };
+    const countScore = Math.min(60, pool.length * 6);
+    const verifiedRatio = pool.filter((a) => a.llmVerified).length / pool.length;
+    const qualityScore = Math.min(40, verifiedRatio * 40);
+    const score = Math.round(countScore + qualityScore);
+    const label = score >= 85 ? "Radiating Joy" : score >= 65 ? "Feeling Bright" : score >= 40 ? "Gently Positive" : "Warming Up";
+    const emoji = score >= 85 ? "🌟" : score >= 65 ? "☀️" : score >= 40 ? "🌤️" : "🌱";
+    return { score, label, emoji };
+  }, [todaysArticles, articles]);
   const availableCategories = useMemo(() => {
     const cats = new Set(articles.map((a) => a.category));
     return ["all", ...Object.keys(CATEGORY_META).filter((k) => k !== "all" && cats.has(k))];
@@ -349,7 +402,79 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
       {/* ── MAIN ───────────────────────────────────────────────── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="space-y-4">
+        <div className="space-y-6">
+
+            {/* Joy Meter — a playful daily flourish, not a serious metric */}
+            <div className="flex items-center gap-3 bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-2.5">
+              <span className="text-lg leading-none">{joyMeter.emoji}</span>
+              <div className="flex-grow">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Today&rsquo;s Joy Meter</span>
+                  <span className="text-[10px] font-black text-amber-600">{joyMeter.label}</span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-amber-400 to-rose-400 rounded-full transition-all duration-700" style={{ width: `${joyMeter.score}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Today's Top Story — a real lead-story hero instead of every
+                card being equal weight, like a real front page. */}
+            {topStory && (
+              <button onClick={() => setSelectedId(topStory.id)}
+                className="group w-full text-left bg-white rounded-2xl border border-amber-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col md:flex-row">
+                <div className="relative md:w-2/5 h-52 md:h-auto bg-slate-100 shrink-0 overflow-hidden">
+                  <img src={topStory.imageUrl || placeholderFor(topStory.id)} alt="" loading="lazy"
+                    className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                    onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(topStory.id); }} />
+                  <span className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
+                    <Star className="h-2.5 w-2.5 fill-white" />Today&rsquo;s Top Story
+                  </span>
+                </div>
+                <div className="p-5 md:p-6 flex-grow flex flex-col gap-2 justify-center">
+                  <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                    <span>{topStory.region === "singapore" ? "Singapore" : topStory.region === "asia" ? "Asia" : "World"}</span>
+                    <span className="text-slate-300">·</span>
+                    <span className={(CATEGORY_META[topStory.category] || CATEGORY_META.humanity).textColor}>{topStory.category}</span>
+                    <span className="text-slate-300">·</span>
+                    <span>{topStory.source}</span>
+                  </div>
+                  <h2 className="font-serif text-xl md:text-2xl font-black text-slate-900 leading-tight group-hover:text-amber-700 transition-colors">{topStory.title}</h2>
+                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{topStory.summary}</p>
+                  <span className="text-[11px] font-bold text-amber-600 flex items-center gap-1 mt-1">
+                    Read the story <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+              </button>
+            )}
+
+            {/* Best of the Week — resurfaces the highest-confidence stories
+                from the last 7 days, separate from the reverse-chronological
+                main grid below. */}
+            {bestOfWeek.length > 0 && (
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Best of the Week</h3>
+                </div>
+                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                  {bestOfWeek.map((a) => (
+                    <button key={a.id} onClick={() => setSelectedId(a.id)}
+                      className="group shrink-0 w-52 text-left bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all overflow-hidden">
+                      <div className="h-24 bg-slate-100 overflow-hidden">
+                        <img src={a.imageUrl || placeholderFor(a.id)} alt="" loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(a.id); }} />
+                      </div>
+                      <div className="p-2.5">
+                        <p className="font-serif text-[12px] font-bold text-slate-900 leading-tight line-clamp-2">{a.title}</p>
+                        <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wide mt-1">{a.source}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Count */}
             <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
