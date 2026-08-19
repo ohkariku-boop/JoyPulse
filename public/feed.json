@@ -1,6 +1,6 @@
 {
-  "lastUpdated": "2026-08-19T06:56:47.002Z",
-  "count": 308,
+  "lastUpdated": "2026-08-19T07:17:27.399Z",
+  "count": 309,
   "articles": [
     {
       "id": "c2c833bde8f1",
@@ -86,6 +86,23 @@
       "location": "Malaysia",
       "imageUrl": null,
       "pubDate": "2026-08-19T02:58:34.000Z"
+    },
+    {
+      "id": "3692f5fcc76f",
+      "title": "Rage workouts don’t calm you down, research finds. Here’s what does.",
+      "summary": "BY THE OPTIMIST DAILY EDITORIAL TEAM Slamming tires with a sledgehammer, pummeling a punching bag, running yourself into the ground when you&#8217;re furious: the premise behind rage workouts is that intense physical exertion gives anger somewhere to go . A 2024 review of 154 studies covering more than 10,000 participants suggests it doesn&#8217;t work that way. The review, led by Dr. Sophie L.",
+      "source": "Optimist Daily",
+      "sourceUrl": "https://www.optimistdaily.com/2026/08/rage-workouts-dont-calm-you-down-research-finds-heres-what-does/",
+      "category": "science",
+      "score": 1,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "world",
+      "location": "World",
+      "imageUrl": "https://www.optimistdaily.com/wp-content/uploads/Depositphotos_164046178_L-1024x676.jpg",
+      "pubDate": "2026-08-19T00:00:28.000Z"
     },
     {
       "id": "2b2e45514261",
