@@ -39,12 +39,15 @@ const OUTPUT_PATH = resolve(__dirname, "..", "public", "feed.json");
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+// Free-tier model IDs change on OpenRouter — cascade of current :free chat models.
+// If one returns 404, the scraper tries the next.
 const CANDIDATE_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "google/gemini-2.0-flash-exp:free",
-  "qwen/qwen-2.5-72b-instruct:free",
-  "mistralai/mistral-small-24b-instruct-2501:free",
-  "deepseek/deepseek-chat:free",
+  "openrouter/free",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "openai/gpt-oss-20b:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "z-ai/glm-5.2:free",
 ];
 
 const CLASSIFY_SYSTEM_PROMPT = `You are a strict editorial filter for JoyPulse, an Asia-focused "good news only" publication.
