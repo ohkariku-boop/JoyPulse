@@ -20,6 +20,7 @@ interface FeedArticle {
   category: string;
   score: number;
   llmVerified?: boolean;
+  llmScore?: number | null;
   region: string;
   location: string;
   imageUrl: string | null;
@@ -37,16 +38,16 @@ export interface ClientPageProps {
 /* people) to keep this copyright-safe.                             */
 /* ═══════════════════════════════════════════════════════════════ */
 const DAILY_QUOTES: { text: string; author: string }[] = [
-  { text: "Right now, somewhere in Singapore, a hawker is giving away meals. Across Asia, a forest is being replanted. Around the world, a scientist just had a breakthrough. Focus on the good.", author: "JoyPulse" },
-  { text: "Kindness doesn't make the headlines, but it's happening in a thousand quiet places today.", author: "JoyPulse" },
+  { text: "Right now across Asia, a teacher is changing a life, a forest is being replanted, and a stranger is helping another stranger. Focus on the good.", author: "JoyPulse" },
+  { text: "Kindness doesn't make the headlines, but it's happening in a thousand quiet places from Singapore to Seoul today.", author: "JoyPulse" },
   { text: "Somewhere nearby, a stranger just helped another stranger for no reason at all. That's the world too.", author: "JoyPulse" },
   { text: "Good news doesn't shout. It just keeps happening, one small act at a time.", author: "JoyPulse" },
-  { text: "Every day, more gets fixed, healed, planted, and shared than the headlines ever show.", author: "JoyPulse" },
+  { text: "Every day, more gets fixed, healed, planted, and shared across Asia than the headlines ever show.", author: "JoyPulse" },
   { text: "A child learned something new today. Somewhere else, someone finally got the help they needed. Both are real.", author: "JoyPulse" },
   { text: "The world is quietly kinder than the news makes it look.", author: "JoyPulse" },
   { text: "One good deed doesn't need an audience to matter.", author: "JoyPulse" },
   { text: "Progress rarely trends, but it never really stops either.", author: "JoyPulse" },
-  { text: "Somewhere today, a community rebuilt something together that felt impossible alone.", author: "JoyPulse" },
+  { text: "Somewhere today in Asia, a community rebuilt something together that felt impossible alone.", author: "JoyPulse" },
   { text: "The good stuff is happening at the same speed as everything else — it's just quieter.", author: "JoyPulse" },
   { text: "Hope isn't naive. It's just paying attention to a different set of facts.", author: "JoyPulse" },
   { text: "Somebody's small act of patience today will ripple further than they'll ever know.", author: "JoyPulse" },
@@ -222,7 +223,13 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
      Combined score: LLM-verified stories rank far above keyword-only
      ones (they've had a real contextual check, not just pattern
      matching), keyword score is the tiebreaker within each tier. */
-  const combinedScore = useCallback((a: FeedArticle) => (a.llmVerified ? 1000 : 0) + a.score, []);
+  // Ranking: LLM-verified stories rank higher. Within verified, prefer higher llmScore.
+  // Singapore stories get a small boost to keep local relevance strong.
+  const combinedScore = useCallback((a: FeedArticle) => {
+    const llmBoost = a.llmVerified ? 1000 + (a.llmScore ?? 7) * 10 : 0;
+    const sgBoost = a.region === "singapore" ? 50 : 0;
+    return llmBoost + sgBoost + a.score;
+  }, []);
 
   const todaysArticles = useMemo(() => {
     if (articles.length === 0) return [];
@@ -379,7 +386,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             <span className="bg-gradient-to-r from-amber-500 to-rose-500 bg-clip-text text-transparent">Asia&rsquo;s</span> good news, in one place
           </h1>
           <p className="mt-2 text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-            A daily digest of real, positive stories from CNA, Good News Network, Positive News, The Better India & more.
+            Singapore spotlight + the best from across Asia. Real positive stories, filtered for genuine uplift. Zero negativity.
           </p>
 
           {/* Search */}
@@ -598,10 +605,10 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
           {howItWorksOpen && (
             <div className="px-5 pb-5 space-y-3">
               <p className="text-xs text-slate-300 leading-relaxed">
-                JoyPulse scrapes <strong>18 real RSS news feeds</strong> daily across Asia — Singapore, Malaysia, Indonesia, Thailand, Vietnam, the Philippines, and beyond — plus dedicated good-news outlets.
+                JoyPulse scrapes <strong>real RSS news feeds</strong> daily across Asia — Singapore first, then Malaysia, Indonesia, Thailand, Vietnam, the Philippines, India and beyond — plus dedicated good-news outlets worldwide.
               </p>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Each article is scored against <strong>200+ positive keywords</strong>, filtered through <strong>100+ negative patterns</strong>, then double-checked by an AI model for genuine positivity. Only real, verified-good stories make it here.
+                Each article is scored against <strong>200+ positive keywords</strong>, filtered through <strong>100+ negative patterns</strong>, then double-checked by an AI model that scores genuine positivity (1–10). Only real, uplifting stories make it here.
               </p>
               <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Feed sources</p>
@@ -623,9 +630,9 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       <footer className="bg-slate-900 text-white mt-12 border-t border-slate-800 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-3">
           <div className="flex items-center justify-center gap-2"><div className="bg-amber-400 p-1 rounded-lg text-slate-950"><Sun className="h-4 w-4" /></div><span className="text-sm font-black">JoyPulse<span className="text-amber-400">.</span></span></div>
-          <p className="text-[10px] text-slate-400 max-w-md mx-auto">Real positive news from Singapore & Asia. Scraped from 9 RSS feeds, filtered for positivity, deployed as a static site to GitHub Pages.</p>
+          <p className="text-[10px] text-slate-400 max-w-md mx-auto">Real positive news from across Asia — Singapore spotlight + regional highlights. Filtered for genuine uplift. Static, private, no tracking.</p>
           <div className="text-[9px] text-slate-500 font-bold tracking-widest uppercase flex flex-wrap justify-center gap-3">
-            <span>🇸🇬 Singapore First</span><span>🌏 Asia Focus</span><span>✨ Zero Negativity</span><span>📱 Mobile Friendly</span><span>🔒 No Tracking</span>
+            <span>🌏 Best of Asia</span><span>🇸🇬 Singapore Spotlight</span><span>✨ Zero Negativity</span><span>📱 Mobile Friendly</span><span>🔒 No Tracking</span>
           </div>
           <p className="text-[8px] text-slate-600">© {new Date().getFullYear()} JoyPulse • Static site • No server • No database • No cookies</p>
         </div>

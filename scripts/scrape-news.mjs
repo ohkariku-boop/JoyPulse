@@ -47,23 +47,28 @@ const CANDIDATE_MODELS = [
   "deepseek/deepseek-chat:free",
 ];
 
-const CLASSIFY_SYSTEM_PROMPT = `You are a strict editorial filter for a "good news only" publication.
-Given a headline and short summary, decide whether this is a GENUINELY uplifting, heartwarming, or positive story — not just a story that mentions a positive-sounding word.
+const CLASSIFY_SYSTEM_PROMPT = `You are a strict editorial filter for JoyPulse, an Asia-focused "good news only" publication.
+Given a headline and short summary, decide whether this is a GENUINELY uplifting, heartwarming, or positive story — not merely a story that happens to contain a positive-sounding word.
 
-REJECT stories that are:
-- Primarily about tragedy, disaster, crime, conflict, illness outbreaks, or death — even if there's a small silver lining mentioned
-- Business/finance/political news with no real human-interest or uplifting angle, even if framed with words like "record," "growth," or "target"
-- Mixed or bittersweet stories where the negative framing dominates
-- Fear, controversy, or outrage-driven, even if a resolution is mentioned
+STRICT REJECT criteria (approved: false):
+- Primarily about tragedy, disaster, crime, conflict, illness, death, or accidents — even if a small silver lining or recovery is mentioned
+- Business, finance, economic, or political news with no real human-interest or uplifting angle (ignore words like "record", "growth", "surge", "target", "expansion")
+- Sports results that are only scores or match outcomes with no human story
+- Mixed, bittersweet, or "despite the hardship" stories where negative framing dominates
+- Fear, controversy, outrage, protest, or criticism-driven pieces
+- Stories that feel neutral or only mildly positive
 
-APPROVE stories that are:
-- Genuinely heartwarming acts of kindness, rescue, recovery, or generosity
-- Real scientific, medical, or environmental breakthroughs with clear positive impact
-- Uplifting community, cultural, or human-achievement stories
+APPROVE criteria (approved: true):
+- Genuinely heartwarming acts of kindness, rescue, recovery, generosity, or community solidarity
+- Real scientific, medical, environmental, or technological breakthroughs with clear positive human or planetary impact
+- Uplifting human-achievement, cultural, arts, or educational stories
 - Wholesome, feel-good stories with no significant negative framing
+- Positive nature, conservation, or animal welfare stories that inspire
+
+Also return a positivity score from 1-10 (10 = pure joy / deeply moving; 7-9 = clearly uplifting; 5-6 = borderline; below 5 should usually be rejected).
 
 Respond with ONLY a JSON object, no other text:
-{"approved": true or false, "confidence": "high" or "medium" or "low", "reason": "one short sentence"}`;
+{"approved": true or false, "score": 1-10, "confidence": "high" or "medium" or "low", "reason": "one short sentence"}`;
 
 // Overall wall-clock budget for ALL LLM classification calls combined, across
 // the whole run. Once exceeded, remaining candidates fall back to keyword-only
@@ -137,6 +142,7 @@ async function classifyWithLLM(title, summary) {
 
       return {
         approved: parsed.approved,
+        score: typeof parsed.score === "number" ? Math.max(1, Math.min(10, parsed.score)) : (parsed.approved ? 7 : 3),
         confidence: parsed.confidence || "unknown",
         reason: parsed.reason || "",
         model,
@@ -514,15 +520,17 @@ async function scrapeAllFeeds() {
         // the article entirely — degrade gracefully, don't fail the run.
         const verdict = await classifyWithLLM(title, summary);
         let llmVerified = false;
+        let llmScore = null;
         let llmReason = "";
         let llmModel = null;
 
         if (verdict) {
-          if (!verdict.approved) {
-            console.log(`   ✗ LLM rejected: "${title.slice(0, 60)}…" (${verdict.reason})`);
+          if (!verdict.approved || (verdict.score && verdict.score < 6)) {
+            console.log(`   ✗ LLM rejected: "${title.slice(0, 60)}…" (score=${verdict.score ?? "n/a"}, ${verdict.reason})`);
             continue;
           }
           llmVerified = true;
+          llmScore = verdict.score;
           llmReason = verdict.reason;
           llmModel = verdict.model;
         }
@@ -552,6 +560,7 @@ async function scrapeAllFeeds() {
           category: scoring.category,
           score: scoring.score,
           llmVerified,
+          llmScore,
           llmReason,
           llmModel,
           region,

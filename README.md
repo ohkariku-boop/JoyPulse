@@ -37,8 +37,9 @@
 
 ### Positivity Filter — two-pass
 1. **Keyword pre-filter** (free, instant): 200+ positive keywords across 5 categories, 100+ negative patterns, word-boundary matching (not naive substring — avoids false positives like "ai" matching inside "said"). Requires 2+ matches for general news sources, 1+ for already-curated positive-news sources.
-2. **LLM sentiment verification** (optional but recommended): survivors of the keyword filter are sent to a free OpenRouter model for a real contextual judgment call — catches nuance, sarcasm, and mixed-sentiment stories the keyword filter can't. Falls back gracefully to keyword-only results if no API key is set, or if every candidate model is unavailable that day.
-- **Location detection** maps article text to Singapore, Malaysia, Japan, India, etc.
+2. **LLM sentiment verification** (optional but recommended): survivors of the keyword filter are sent to free OpenRouter models for a real contextual judgment. The model returns `approved` + a 1–10 positivity score + confidence + short reason. Stories scoring below 6 are rejected. Falls back gracefully to keyword-only results if no API key is set or models are unavailable.
+- **Location detection** maps article text to Singapore, Malaysia, Japan, India, etc. Singapore stories receive a small ranking boost to keep local relevance strong.
+- **Ranking**: LLM-verified + higher llmScore + slight Singapore boost + keyword score.
 
 ---
 
