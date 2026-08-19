@@ -5,7 +5,7 @@ import {
   Sun, Heart, Sparkles, Cpu, Globe, Trophy, Music, Search,
   X, ArrowRight, Compass, Gift, ExternalLink, MapPin,
   Clock, Briefcase, Bookmark, BookmarkCheck, ChevronDown,
-  Star, TrendingUp,
+  ChevronLeft, ChevronRight, Star, TrendingUp,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════ */
@@ -321,6 +321,80 @@ function StoryImage({
   );
 }
 
+/** Horizontal story rail with left/right arrow buttons (more discoverable than a thin scrollbar). */
+function StoryRail({
+  children,
+  darkMode,
+}: {
+  children: React.ReactNode;
+  darkMode: boolean;
+}) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 4);
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    ro?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro?.disconnect();
+    };
+  }, [update, children]);
+
+  const scrollBy = (dir: -1 | 1) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.min(280, el.clientWidth * 0.8), behavior: "smooth" });
+  };
+
+  const btnClass = `absolute top-1/2 -translate-y-1/2 z-10 h-8 w-8 rounded-full shadow-md border flex items-center justify-center transition disabled:opacity-0 disabled:pointer-events-none ${
+    darkMode
+      ? "bg-slate-800/95 border-slate-600 text-slate-200 hover:bg-slate-700"
+      : "bg-white/95 border-slate-200 text-slate-700 hover:bg-slate-50"
+  }`;
+
+  return (
+    <div className="relative group/rail">
+      <button
+        type="button"
+        aria-label="Scroll left"
+        disabled={!canLeft}
+        onClick={() => scrollBy(-1)}
+        className={`${btnClass} left-0 sm:-left-1`}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        aria-label="Scroll right"
+        disabled={!canRight}
+        onClick={() => scrollBy(1)}
+        className={`${btnClass} right-0 sm:-right-1`}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+      <div
+        ref={ref}
+        className="flex gap-3 overflow-x-auto no-scrollbar pb-1 scroll-smooth px-1"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════ */
 /* MAIN COMPONENT                                                  */
 /* ═══════════════════════════════════════════════════════════════ */
@@ -494,29 +568,43 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     })[0];
   }, [todaysArticles, articles, combinedScore]);
 
+  const titleKey = useCallback(
+    (s: string) => s.toLowerCase().replace(/&amp;/g, "&").replace(/[^a-z0-9]+/g, " ").trim(),
+    []
+  );
+
   const bestOfWeek = useMemo(() => {
     const weekAgo = Date.now() - 7 * 86400000;
-    const seenTitles = new Set<string>();
-    const normalize = (s: string) => s.toLowerCase().replace(/&amp;/g, "&").replace(/[^a-z0-9]+/g, " ").trim();
-    if (topStory) seenTitles.add(normalize(topStory.title));
+    const seen = new Set<string>();
+    if (topStory) seen.add(titleKey(topStory.title));
     return [...articles]
       .filter((a) => new Date(a.pubDate).getTime() >= weekAgo && a.id !== topStory?.id)
       .sort((a, b) => combinedScore(b) - combinedScore(a))
       .filter((a) => {
-        const key = normalize(a.title);
-        if (seenTitles.has(key)) return false;
-        seenTitles.add(key);
+        const key = titleKey(a.title);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
         return true;
       })
       .slice(0, 8);
-  }, [articles, topStory, combinedScore]);
+  }, [articles, topStory, combinedScore, titleKey]);
 
+  // Singapore-only picks, excluding top story + anything already in Best of the Week
   const singaporeSpotlight = useMemo(() => {
+    const seen = new Set<string>();
+    if (topStory) seen.add(titleKey(topStory.title));
+    for (const a of bestOfWeek) seen.add(titleKey(a.title));
     return [...articles]
-      .filter((a) => a.region === "singapore")
+      .filter((a) => a.region === "singapore" && a.id !== topStory?.id)
       .sort((a, b) => combinedScore(b) - combinedScore(a))
+      .filter((a) => {
+        const key = titleKey(a.title);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .slice(0, 6);
-  }, [articles, combinedScore]);
+  }, [articles, topStory, bestOfWeek, combinedScore, titleKey]);
 
   const joyMeter = useMemo(() => {
     const pool = todaysArticles.length >= 3 ? todaysArticles : articles.slice(0, 20);
@@ -779,7 +867,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                   <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
                   <h3 className={`text-[10px] font-black uppercase tracking-widest ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Best of the Week</h3>
                 </div>
-                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                <StoryRail darkMode={darkMode}>
                   {bestOfWeek.map((a) => (
                     <button key={a.id} onClick={() => setSelectedId(a.id)}
                       className={`group shrink-0 w-52 text-left rounded-lg border hover:shadow-md transition-all overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`}>
@@ -794,18 +882,18 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                       </div>
                     </button>
                   ))}
-                </div>
+                </StoryRail>
               </div>
             )}
 
-            {/* Singapore Spotlight */}
+            {/* Singapore Spotlight — excludes top story + Best of the Week to avoid repeats */}
             {singaporeSpotlight.length > 0 && selectedRegion === "all" && (
               <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5 text-red-500" />
                   <h3 className={`text-[10px] font-black uppercase tracking-widest ${darkMode ? "text-slate-400" : "text-slate-500"}`}>🇸🇬 Singapore Spotlight</h3>
                 </div>
-                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                <StoryRail darkMode={darkMode}>
                   {singaporeSpotlight.map((a) => (
                     <button key={a.id} onClick={() => setSelectedId(a.id)}
                       className={`group shrink-0 w-52 text-left rounded-lg border hover:shadow-md transition-all overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`}>
@@ -820,7 +908,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                       </div>
                     </button>
                   ))}
-                </div>
+                </StoryRail>
               </div>
             )}
 
