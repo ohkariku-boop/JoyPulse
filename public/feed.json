@@ -1,7 +1,41 @@
 {
-  "lastUpdated": "2026-08-19T05:27:27.594Z",
-  "count": 298,
+  "lastUpdated": "2026-08-19T06:56:47.002Z",
+  "count": 308,
   "articles": [
+    {
+      "id": "c2c833bde8f1",
+      "title": "Chinese robotaxi firms see eased regulatory bottleneck in Europe as deployment picks up",
+      "summary": "The business environment for Chinese robotaxi operators in Europe has become more open and friendly over the past year, which would help facilitate Chinese firms to commercialise their self-driving technology worldwide, according to Pony AI founder and CEO James Peng.",
+      "source": "SCMP Asia",
+      "sourceUrl": "https://www.scmp.com/business/china-business/article/3364522/chinese-robotaxi-firms-see-eased-regulatory-bottleneck-europe-deployment-picks?utm_source=rss_feed",
+      "category": "science",
+      "score": 2,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "asia",
+      "location": "China",
+      "imageUrl": "https://cdn.i-scmp.com/sites/default/files/styles/1280x720/public/d8/images/canvas/2026/08/19/512d0e3f-5a94-4bc3-abac-76cecfed6c5f_c7fd38b6.jpg?itok=uSrJPM8s&v=1787116468",
+      "pubDate": "2026-08-19T06:39:59.000Z"
+    },
+    {
+      "id": "3fb2d8984bc4",
+      "title": "China’s robots search for workforce breakthrough",
+      "summary": "A girl holds the hand of a remote-controlled robot by Unitree Robotics while visiting the Unitree Robotics Embodied Intelligence Experience Center in Shanghai's Jing' an district. (AFP pic) HANGZHOU: A horde of schoolchildren watched excitedly as a diminutive humanoid tour guide named Wuji welcomed them to a robot school in eastern China, gesticulating theatrically as it described the institute's aspiration to train…",
+      "source": "Free Malaysia Today",
+      "sourceUrl": "https://www.freemalaysiatoday.com/category/world/2026/08/19/china-s-robots-search-for-workforce-breakthrough",
+      "category": "science",
+      "score": 2,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "asia",
+      "location": "Malaysia",
+      "imageUrl": "https://media.freemalaysiatoday.com/v3/2026/08/40f2298a-d20f-4b13-8a9a-fa38a83bb3aa-Robot-dog-Unitree-China-AFP-19082026-.webp",
+      "pubDate": "2026-08-19T04:23:03.000Z"
+    },
     {
       "id": "e7cbad7c8e25",
       "title": "Hong Kong Gold Exchange taps tech strength in joint venture to power gold settlement",
@@ -18,6 +52,23 @@
       "location": "China",
       "imageUrl": "https://cdn.i-scmp.com/sites/default/files/styles/1280x720/public/d8/images/canvas/2026/08/19/5f6bfef8-afa2-450b-9095-1e0ee986809b_a0274eaa.jpg?itok=EdYRqJKC&v=1787110131",
       "pubDate": "2026-08-19T03:28:54.000Z"
+    },
+    {
+      "id": "a97add70e4d6",
+      "title": "OpenAI slows model training to bolster security after Hugging Face hack",
+      "summary": "SAN FRANCISCO, USA – OpenAI on Tuesday, August 18, said it is slowing down the pace of its AI model development while it overhauls its research and training systems after OpenAI officials were caught unawares last month when an AI agent under testing hacked another AI firm Hugging Face.",
+      "source": "Rappler",
+      "sourceUrl": "https://www.rappler.com/technology/openai-slows-model-training-bolster-security-after-hugging-face-hack/",
+      "category": "science",
+      "score": 2,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "asia",
+      "location": "Asia",
+      "imageUrl": null,
+      "pubDate": "2026-08-19T03:23:11.000Z"
     },
     {
       "id": "0c5d7a8f3695",
@@ -731,6 +782,23 @@
       "pubDate": "2026-08-16T13:33:26.000Z"
     },
     {
+      "id": "eada621fee74",
+      "title": "She Turned a Ban on Wedding Embroidery Into Colourful Bags Supporting 300 Women Artisans",
+      "summary": "It is hard to miss a Pabi Bag. Bright ribbons run across its cotton surface, forming colourful patterns that immediately catch the eye. Look a little closer, though, and the bag reveals something more: a contemporary product carrying the visual language of Kutch&rsquo;s Rabari embroidery &mdash; and the story of a craft that found a second life.",
+      "source": "The Better India",
+      "sourceUrl": "https://thebetterindia.com/startup/pabiben-rabari-hari-jari-craft-embroidery-brand-kutch-gujarat-12260232",
+      "category": "arts",
+      "score": 1,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "asia",
+      "location": "India",
+      "imageUrl": "https://img-cdn.publive.online/fit-in/1280x960/english-betterindia/media/media_files/2026/08/14/pabiben-rabari-2026-08-14-15-53-49.png",
+      "pubDate": "2026-08-16T08:48:13.000Z"
+    },
+    {
       "id": "7bad7271e206",
       "title": "How Janine Berdin learned to trust in her own artistry",
       "summary": "The breakout Bisaya artist shows why her voice, lyrics, and overall craft are here to stay",
@@ -939,6 +1007,23 @@
       "pubDate": "2026-08-15T06:55:00.000Z"
     },
     {
+      "id": "e9b37a4e135d",
+      "title": "28 States, 28 Heroes | One Better India. 🇮🇳",
+      "summary": "28 states. 28 heroes. One Better India. 🇮🇳 Across the country, everyday Indians are taking responsibility for their communities—cleaning streets, protecting public spaces, reducing waste, helping those around them, and inspiring others to do the same.",
+      "source": "The Better India",
+      "sourceUrl": "https://thebetterindia.com/videos/society/28-states-28-heroes-one-better-india-12262080",
+      "category": "humanity",
+      "score": 2,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "asia",
+      "location": "India",
+      "imageUrl": "https://img-cdn.publive.online/fit-in/1280x960/english-betterindia/media/youtube_thumbnails/vi/VT-j4W_xPSc/maxresdefault.jpg",
+      "pubDate": "2026-08-15T03:30:38.000Z"
+    },
+    {
       "id": "6d2ca758ea28",
       "title": "This Independence Day, We're Celebrating a Different Kind of Hero",
       "summary": "In July 2015, a 16-year-old boy named Prakash was riding pillion on his cousin's motorbike through Mumbai when the wheel hit a pothole. He was thrown from the bike and did not survive. His…",
@@ -969,6 +1054,23 @@
       "location": "World",
       "imageUrl": null,
       "pubDate": "2026-08-14T23:15:56.000Z"
+    },
+    {
+      "id": "eb66dee00a86",
+      "title": "The Untold Story of India's Tricolour 🇮🇳",
+      "summary": "You hoist me twice a year. But I represent 1.4 billion Indians every single day. 🇮🇳 I wasn't created overnight. Long before I flew over the Red Fort, India's flag went through years of evolution, countless designs, and one dream—a free India. In 1921, Pingali Venkayya presented an early design, while Mahatma Gandhi imagined the spinning wheel as a symbol of self-reliance.",
+      "source": "The Better India",
+      "sourceUrl": "https://thebetterindia.com/videos/knowledge/the-untold-story-of-indias-tricolour-12261677",
+      "category": "arts",
+      "score": 1,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "asia",
+      "location": "India",
+      "imageUrl": "https://img-cdn.publive.online/fit-in/1280x960/english-betterindia/media/youtube_thumbnails/vi/vbMH9m9s86o/maxresdefault.jpg",
+      "pubDate": "2026-08-14T20:02:38.000Z"
     },
     {
       "id": "65ff1d742986",
@@ -1193,6 +1295,23 @@
       "location": "India",
       "imageUrl": "https://img-cdn.publive.online/fit-in/1280x960/english-betterindia/media/media_files/2026/08/13/dr-madhavi-bharadwaj-2026-08-13-11-07-17.png",
       "pubDate": "2026-08-14T08:37:39.000Z"
+    },
+    {
+      "id": "6efda51be89a",
+      "title": "Ahmedabad Is Teaching People to Sort Household Waste While They Wait at Traffic Signals",
+      "summary": "At a traffic signal in Ahmedabad, the red light usually buys commuters thirty seconds of idling and honking. On one recent morning, it bought them something else.&nbsp; Members of the Ahmedabad Municipal Corporation (AMC) stood at a busy junction with four labelled bins , holding up a vegetable peel, a plastic wrapper, a used sanitary pad and an empty medicine strip, asking waiting commuters to guess which bin each…",
+      "source": "The Better India",
+      "sourceUrl": "https://thebetterindia.com/governance/ahmedabad-amc-four-bin-waste-segregation-traffic-signal-12259296",
+      "category": "science",
+      "score": 1,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "asia",
+      "location": "India",
+      "imageUrl": "https://img-cdn.publive.online/fit-in/1280x960/english-betterindia/media/media_files/2026/08/14/1-2026-08-14-11-20-30.png",
+      "pubDate": "2026-08-14T07:00:38.000Z"
     },
     {
       "id": "8d4b96f99acb",
@@ -2459,6 +2578,23 @@
       "pubDate": "2026-08-09T22:43:37.000Z"
     },
     {
+      "id": "3b5dd987a746",
+      "title": "Intricate Carvings in Ostrich Eggshells are 60,000 Years Old – and Reveal ‘Remarkable’ Human Thinking",
+      "summary": "Dating back more than 60,000 years ago, humans in southern Africa were engraving ostrich eggshells with intricate geometric patterns that—the longer we study them—look more organized than we previously realized. A new analysis of the markings found on hundreds of eggshell fragments has revealed our ancestors’ remarkable ability to organize visual space according to abstract [&#8230;] The post Intricate Carvings in…",
+      "source": "Good News Network",
+      "sourceUrl": "https://www.goodnewsnetwork.org/intricate-carvings-in-ostrich-eggshells-from-60000-year-ago/",
+      "category": "science",
+      "score": 1,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "world",
+      "location": "World",
+      "imageUrl": null,
+      "pubDate": "2026-08-09T21:28:03.000Z"
+    },
+    {
       "id": "d45cf778e870",
       "title": "Her Husband Became Her Coach | Then She Won Commonwealth Bronze ❤️",
       "summary": "\"Daughter-in-laws don't go out.\" That's what many expected after Seema Kaliramna got married. But her husband chose a different path. A former national-level discus thrower whose own sporting…",
@@ -2921,6 +3057,23 @@
       "location": "India",
       "imageUrl": "https://img-cdn.publive.online/fit-in/1280x960/english-betterindia/media/media_files/2026/08/07/treat-fungus-on-plants-2026-08-07-14-54-28.png",
       "pubDate": "2026-08-07T10:36:45.000Z"
+    },
+    {
+      "id": "e12a15f87ee8",
+      "title": "The Spark: How Neighbors Are Banding Together to Go Greener",
+      "summary": "Welcome back to The Spark, our monthly celebration of how people just like you are creating positive change, one meaningful step at a time. The Spark is generously supported by Laura Rice. Sign up to Reasons to be Cheerful’s weekly newsletter here and you’ll get The Spark in your inbox at the start of each month In this issue How coaches (heat) pump up homes Neighbors unite for cheaper solar Build your own…",
+      "source": "Reasons to be Cheerful",
+      "sourceUrl": "https://reasonstobecheerful.world/the-spark-green-home-energy/",
+      "category": "science",
+      "score": 1,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "world",
+      "location": "World",
+      "imageUrl": "https://s.w.org/images/core/emoji/17.0.2/72x72/1f321.png",
+      "pubDate": "2026-08-07T08:00:42.000Z"
     },
     {
       "id": "46b0a8f6059e",
@@ -4713,6 +4866,23 @@
       "location": "World",
       "imageUrl": null,
       "pubDate": "2022-01-12T21:53:28.000Z"
+    },
+    {
+      "id": "7ad3c394c796",
+      "title": "Anonymous Shopper Gifts Boy Iconic Guitar After Seeing Him Visit Store to Play It",
+      "summary": "A young boy named Fallon would visit the J.B. Hart Music Co. store in Grand Junction, Colorado frequently in order to play what he referred to as the “Pantera” guitar, or the Dean Dimebag Darrell ML Guitar. Fallon suffers from Williams Syndrome, a developmental disorder that is present at birth and can cause a variety of medical problems.",
+      "source": "Tank's Good News",
+      "sourceUrl": "https://tanksgoodnews.com/anonymous-shopper-gifts-boy-iconic-guitar-after-seeing-him-visit-store-to-play-it/",
+      "category": "science",
+      "score": 1,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "world",
+      "location": "World",
+      "imageUrl": "https://tanksgoodnews.com/wp-content/uploads/2022/01/fallon-playing-3.jpeg",
+      "pubDate": "2022-01-12T20:42:04.000Z"
     },
     {
       "id": "b5f7a9f63550",
