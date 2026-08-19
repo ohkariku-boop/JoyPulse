@@ -67,3 +67,18 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Prefer system color scheme awareness */
+html {
+  color-scheme: light dark;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-up,
+  .animate-slide-up,
+  .animate-pulse-glow,
+  .animate-heart-beat {
+    animation: none !important;
+  }
+}

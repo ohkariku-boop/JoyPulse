@@ -151,23 +151,68 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
   const [floats, setFloats] = useState<{ id: number; x: number; y: number; emoji: string }[]>([]);
   // toast
   const [toast, setToast] = useState<string | null>(null);
+  // dark mode
+  const [darkMode, setDarkMode] = useState(false);
+  // newsletter email (client-side only for now)
+  const [email, setEmail] = useState("");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "ok" | "error">("idle");
 
   /* ── hydrate from localStorage ─────────────────────────────── */
   useEffect(() => {
     setMyReactions(lsGet("jp_reactions", {}));
     const bk: string[] = lsGet("jp_bookmarks", []);
     setBookmarks(new Set(bk));
+    const savedDark = lsGet<boolean | null>("jp_dark", null);
+    if (savedDark !== null) setDarkMode(savedDark);
+    else if (typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches) setDarkMode(true);
   }, []);
 
   /* ── persist ───────────────────────────────────────────────── */
   useEffect(() => { lsSet("jp_reactions", myReactions); }, [myReactions]);
   useEffect(() => { lsSet("jp_bookmarks", Array.from(bookmarks)); }, [bookmarks]);
+  useEffect(() => { lsSet("jp_dark", darkMode); }, [darkMode]);
 
   /* ── helpers ───────────────────────────────────────────────── */
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3500);
   }, []);
+
+  const shareStory = useCallback(async (article: FeedArticle) => {
+    const url = article.sourceUrl || (typeof window !== "undefined" ? window.location.href : "https://ohkariku-boop.github.io/JoyPulse/");
+    const text = `${article.title}\n\n✨ Found on JoyPulse — Asia's Good News\n`;
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({ title: article.title, text, url });
+        showToast("Shared! ✨");
+      } else if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(`${text}${url}`);
+        showToast("Link copied — paste anywhere!");
+      } else {
+        showToast("Copy this link: " + url);
+      }
+    } catch {
+      /* user cancelled share */
+    }
+  }, [showToast]);
+
+  const handleNewsletter = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !email.includes("@")) {
+      setEmailStatus("error");
+      showToast("Please enter a valid email");
+      return;
+    }
+    // Store locally for now; later wire to Buttondown/Beehiiv/Resend
+    const list: string[] = lsGet("jp_newsletter_emails", []);
+    if (!list.includes(email.toLowerCase())) {
+      list.push(email.toLowerCase());
+      lsSet("jp_newsletter_emails", list);
+    }
+    setEmailStatus("ok");
+    setEmail("");
+    showToast("You're on the list! Digest coming soon ☀️");
+  }, [email, showToast]);
 
   const triggerFloat = useCallback((cx: number, cy: number, emoji: string) => {
     const fid = Date.now() + Math.random();
@@ -264,6 +309,13 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       .slice(0, 8);
   }, [articles, topStory, combinedScore]);
 
+  const singaporeSpotlight = useMemo(() => {
+    return [...articles]
+      .filter((a) => a.region === "singapore")
+      .sort((a, b) => combinedScore(b) - combinedScore(a))
+      .slice(0, 6);
+  }, [articles, combinedScore]);
+
   const joyMeter = useMemo(() => {
     const pool = todaysArticles.length >= 3 ? todaysArticles : articles.slice(0, 20);
     if (pool.length === 0) return { score: 0, label: "Warming Up", emoji: "🌱" };
@@ -284,7 +336,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
   /* RENDER                                                        */
   /* ═════════════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-amber-100 selection:text-amber-900">
+    <div className={`min-h-screen font-sans transition-colors duration-300 selection:bg-amber-100 selection:text-amber-900 ${darkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800"}`}>
 
       {/* Toast */}
       {toast && (
@@ -300,25 +352,35 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       ))}
 
       {/* ── HEADER ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-slate-100 z-20">
+      <header className={`sticky top-0 backdrop-blur-md border-b z-20 ${darkMode ? "bg-slate-900/90 border-slate-800" : "bg-white/90 border-slate-100"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-14">
           <div className="flex items-center gap-2">
             <div className="bg-amber-400 p-1.5 rounded-xl text-slate-900 shadow-sm animate-pulse-glow"><Sun className="h-5 w-5 stroke-[2.5]" /></div>
             <div>
-              <span className="text-base sm:text-lg font-black tracking-tight text-slate-900">JoyPulse<span className="text-amber-500">.</span></span>
+              <span className={`text-base sm:text-lg font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>JoyPulse<span className="text-amber-500">.</span></span>
               <p className="text-[8px] sm:text-[9px] font-semibold text-slate-400 uppercase tracking-widest -mt-1">Asia • Good News Only</p>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-4 text-[10px]">
             <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Your Smiles</p><p className="text-sm font-black text-amber-500 font-mono">{totalMyReactions}</p></div>
-            <div className="h-5 w-px bg-slate-100" />
+            <div className={`h-5 w-px ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />
             <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Saved</p><p className="text-sm font-black text-rose-500 font-mono">{bookmarks.size}</p></div>
-            <div className="h-5 w-px bg-slate-100" />
-            <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Stories</p><p className="text-sm font-black text-slate-800 font-mono">{articles.length}</p></div>
+            <div className={`h-5 w-px ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />
+            <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Stories</p><p className={`text-sm font-black font-mono ${darkMode ? "text-slate-100" : "text-slate-800"}`}>{articles.length}</p></div>
           </div>
-          <div className="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span className="hidden sm:inline">Updated {timeAgo(lastUpdated)}</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setDarkMode((d) => !d)}
+              className={`p-1.5 rounded-lg transition-colors ${darkMode ? "bg-slate-800 text-amber-400 hover:bg-slate-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              aria-label="Toggle dark mode"
+              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {darkMode ? <Sun className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+            </button>
+            <div className="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span className="hidden sm:inline">Updated {timeAgo(lastUpdated)}</span>
+            </div>
           </div>
         </div>
       </header>
@@ -326,7 +388,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       {/* ── SECTION NAV — like a real news site's category strip, sticky
            directly under the masthead (CNN/BBC-style), instead of filter
            chips buried inside the content column. ─────────────────── */}
-      <div className="sticky top-14 z-10 bg-white border-b border-slate-200">
+      <div className={`sticky top-14 z-10 border-b ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4 sm:gap-5 overflow-x-auto no-scrollbar">
@@ -462,19 +524,19 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5">
                   <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Best of the Week</h3>
+                  <h3 className={`text-[10px] font-black uppercase tracking-widest ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Best of the Week</h3>
                 </div>
                 <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
                   {bestOfWeek.map((a) => (
                     <button key={a.id} onClick={() => setSelectedId(a.id)}
-                      className="group shrink-0 w-52 text-left bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all overflow-hidden">
-                      <div className="h-24 bg-slate-100 overflow-hidden">
+                      className={`group shrink-0 w-52 text-left rounded-lg border hover:shadow-md transition-all overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`}>
+                      <div className={`h-24 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
                         <img src={a.imageUrl || placeholderFor(a.id)} alt="" loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(a.id); }} />
                       </div>
                       <div className="p-2.5">
-                        <p className="font-serif text-[12px] font-bold text-slate-900 leading-tight line-clamp-2">{a.title}</p>
+                        <p className={`font-serif text-[12px] font-bold leading-tight line-clamp-2 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>{a.title}</p>
                         <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wide mt-1">{a.source}</p>
                       </div>
                     </button>
@@ -482,6 +544,67 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 </div>
               </div>
             )}
+
+            {/* Singapore Spotlight */}
+            {singaporeSpotlight.length > 0 && selectedRegion === "all" && (
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-red-500" />
+                  <h3 className={`text-[10px] font-black uppercase tracking-widest ${darkMode ? "text-slate-400" : "text-slate-500"}`}>🇸🇬 Singapore Spotlight</h3>
+                </div>
+                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                  {singaporeSpotlight.map((a) => (
+                    <button key={a.id} onClick={() => setSelectedId(a.id)}
+                      className={`group shrink-0 w-52 text-left rounded-lg border hover:shadow-md transition-all overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`}>
+                      <div className={`h-24 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
+                        <img src={a.imageUrl || placeholderFor(a.id)} alt="" loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(a.id); }} />
+                      </div>
+                      <div className="p-2.5">
+                        <p className={`font-serif text-[12px] font-bold leading-tight line-clamp-2 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>{a.title}</p>
+                        <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wide mt-1">{a.source}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Newsletter + Supporter CTA */}
+            <div className={`rounded-2xl border p-5 sm:p-6 ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gradient-to-br from-amber-50 to-rose-50 border-amber-100"}`}>
+              <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center justify-between">
+                <div className="space-y-1 max-w-md">
+                  <h3 className={`text-sm font-black ${darkMode ? "text-white" : "text-slate-900"}`}>Get the Asia Good News Digest</h3>
+                  <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-600"}`}>A short, uplifting email a few times a week. No spam. Unsubscribe anytime.</p>
+                </div>
+                <form onSubmit={handleNewsletter} className="flex w-full sm:w-auto gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setEmailStatus("idle"); }}
+                    placeholder="you@email.com"
+                    className={`flex-1 sm:w-48 px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-amber-400 ${darkMode ? "bg-slate-800 border-slate-600 text-white placeholder-slate-500" : "bg-white border-slate-200 text-slate-800"}`}
+                  />
+                  <button type="submit" className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold transition-colors shrink-0">
+                    {emailStatus === "ok" ? "Joined ✓" : "Join"}
+                  </button>
+                </form>
+              </div>
+              <div className={`mt-4 pt-4 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${darkMode ? "border-slate-700" : "border-amber-100"}`}>
+                <p className={`text-[11px] ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                  Love JoyPulse? Become a <strong>Supporter</strong> to keep the filters sharp and the project independent.
+                </p>
+                <a
+                  href="https://ko-fi.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-[11px] font-bold transition-colors"
+                >
+                  <Heart className="h-3 w-3" /> Support JoyPulse
+                </a>
+              </div>
+            </div>
 
             {/* Count */}
             <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
@@ -613,7 +736,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Feed sources</p>
                 <div className="flex flex-wrap gap-1">
-                  {["CNA Singapore", "Mothership SG", "Straits Times SG", "Free Malaysia Today", "Jakarta Globe", "Antara News", "Rappler", "Bangkok Post", "VnExpress Int'l", "CNA Asia", "CNA World", "The Better India", "Good News Network", "Positive News", "Good Good Good", "Reasons to be Cheerful", "Optimist Daily", "Tank's Good News"].map((s) => (
+                  {["CNA Singapore", "Mothership SG", "Straits Times SG", "Free Malaysia Today", "Jakarta Globe", "Antara News", "Rappler", "Bangkok Post", "VnExpress Int'l", "CNA Asia", "CNA World", "The Better India", "SCMP Asia", "Good News Network", "Positive News", "Good Good Good", "Reasons to be Cheerful", "Optimist Daily", "Tank's Good News", "DailyGood"].map((s) => (
                     <span key={s} className="bg-white/10 text-slate-300 text-[8px] font-bold px-1.5 py-0.5 rounded">{s}</span>
                   ))}
                 </div>
@@ -680,12 +803,26 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 <p className="text-xs font-semibold text-slate-800 leading-relaxed">{selectedArticle.summary}</p>
               </div>
 
-              {selectedArticle.sourceUrl && (
-                <a href={selectedArticle.sourceUrl} target="_blank" rel="noopener noreferrer"
-                  className="block w-full bg-slate-900 hover:bg-slate-800 text-white text-center font-bold py-2.5 rounded-xl text-xs shadow transition active:scale-[0.98]">
-                  Read Full Story on {selectedArticle.source} →
-                </a>
-              )}
+              <div className="flex gap-2">
+                {selectedArticle.sourceUrl && (
+                  <a href={selectedArticle.sourceUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-center font-bold py-2.5 rounded-xl text-xs shadow transition active:scale-[0.98]">
+                    Read Full Story →
+                  </a>
+                )}
+                <button
+                  onClick={() => shareStory(selectedArticle)}
+                  className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs shadow transition active:scale-[0.98]"
+                >
+                  Share ✨
+                </button>
+                <button
+                  onClick={() => toggleBookmark(selectedArticle.id)}
+                  className={`px-3 py-2.5 rounded-xl border font-bold text-xs transition active:scale-[0.98] ${bookmarks.has(selectedArticle.id) ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                >
+                  {bookmarks.has(selectedArticle.id) ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+                </button>
+              </div>
 
               {/* Reactions */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center space-y-2.5">

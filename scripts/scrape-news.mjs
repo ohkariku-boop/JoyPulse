@@ -191,16 +191,19 @@ const RSS_FEEDS = [
   { url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6936",  name: "CNA Asia",             region: "asia"      },
   { url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6311",  name: "CNA World",            region: "world"     },
   { url: "https://www.thebetterindia.com/feed/",                                                 name: "The Better India",     region: "asia",      isPositiveFeed: true },
+  // India / South Asia extras
+  { url: "https://www.indiatoday.in/rss/1206578",                                                name: "India Today Positive", region: "asia" },
+  // Hong Kong / East Asia
+  { url: "https://www.scmp.com/rss/91/feed",                                                     name: "SCMP Asia",            region: "asia" },
 
   // ── Dedicated positive-news sources (already curated — lower threshold) ─
   { url: "https://www.goodnewsnetwork.org/feed/",                                                name: "Good News Network",    region: "world",     isPositiveFeed: true },
   { url: "https://www.positive.news/feed/",                                                      name: "Positive News",        region: "world",     isPositiveFeed: true },
   { url: "https://www.goodgoodgood.co/articles/rss.xml",                                         name: "Good Good Good",       region: "world",     isPositiveFeed: true },
-  // NOTE: "Sunny Skyz" removed — 404'd twice, and redundant with 6 other
-  // dedicated positive-news sources already in this list.
   { url: "https://reasonstobecheerful.world/feed/",                                               name: "Reasons to be Cheerful", region: "world",   isPositiveFeed: true },
   { url: "https://www.optimistdaily.com/feed/",                                                   name: "Optimist Daily",       region: "world",     isPositiveFeed: true },
   { url: "https://tanksgoodnews.com/feed/",                                                        name: "Tank's Good News",     region: "world",     isPositiveFeed: true },
+  { url: "https://www.dailygood.org/rss/dg/",                                                     name: "DailyGood",            region: "world",     isPositiveFeed: true },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
