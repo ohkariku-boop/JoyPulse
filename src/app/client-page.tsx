@@ -425,32 +425,32 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         </div>
       </div>
 
-      {/* ── SEARCH BAR — directly below top navigation ─────────── */}
+      {/* ── SEARCH BAR — compact, centered below nav ──────────── */}
       <div className={`border-b ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
-          <div className={`rounded-xl border p-1 flex gap-1 ${darkMode ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"}`}>
-            <div className="relative flex-grow flex items-center pl-3">
-              <Search className="absolute left-3.5 text-slate-400 h-4 w-4" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-center">
+          <div className={`w-full max-w-md rounded-xl border p-0.5 flex gap-1 shadow-sm ${darkMode ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"}`}>
+            <div className="relative flex-grow flex items-center pl-2.5 min-w-0">
+              <Search className="absolute left-2.5 text-slate-400 h-3.5 w-3.5 shrink-0" />
               <input
                 type="text"
-                placeholder="Search stories, sources, locations…"
+                placeholder="Search stories…"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setShowCount(20); }}
-                className={`w-full bg-transparent pl-7 pr-3 py-2 text-xs focus:outline-none placeholder-slate-400 ${darkMode ? "text-slate-100" : "text-slate-800"}`}
+                className={`w-full bg-transparent pl-6 pr-2 py-1.5 text-xs focus:outline-none placeholder-slate-400 ${darkMode ? "text-slate-100" : "text-slate-800"}`}
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="p-0.5 rounded-full hover:bg-slate-200 text-slate-400">
-                  <X className="h-3.5 w-3.5" />
+                <button onClick={() => setSearchQuery("")} className="p-0.5 rounded-full hover:bg-slate-200 text-slate-400 shrink-0">
+                  <X className="h-3 w-3" />
                 </button>
               )}
             </div>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as "new" | "popular")}
-              className={`text-[11px] font-bold rounded-lg px-2.5 py-1.5 border-0 focus:ring-2 focus:ring-amber-400 ${darkMode ? "bg-slate-700 text-slate-200" : "bg-white text-slate-700"}`}
+              className={`text-[10px] font-bold rounded-lg px-2 py-1.5 border-0 focus:ring-2 focus:ring-amber-400 shrink-0 ${darkMode ? "bg-slate-700 text-slate-200" : "bg-white text-slate-700"}`}
             >
-              <option value="new">⏰ Latest</option>
-              <option value="popular">🔥 Top Scored</option>
+              <option value="new">Latest</option>
+              <option value="popular">Top</option>
             </select>
           </div>
         </div>
