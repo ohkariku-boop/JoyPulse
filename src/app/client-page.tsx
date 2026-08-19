@@ -115,48 +115,97 @@ function lsSet(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* quota */ }
 }
 
-/** Soft category gradients when a story has no real image — intentional, not repeated stock photos */
-const CATEGORY_GRADIENTS: Record<string, string> = {
-  humanity: "from-rose-100 via-amber-50 to-orange-100",
-  science:  "from-sky-100 via-indigo-50 to-blue-100",
-  nature:   "from-emerald-100 via-teal-50 to-green-100",
-  sports:   "from-orange-100 via-amber-50 to-yellow-100",
-  arts:     "from-violet-100 via-fuchsia-50 to-pink-100",
-  all:      "from-amber-100 via-rose-50 to-orange-100",
+/**
+ * Category-matched stock photos (Unsplash) used only when a story has no
+ * real RSS image. Multiple per category + hash by article id so the same
+ * story always gets the same photo, but different stories don't all look identical.
+ */
+const CATEGORY_STOCK: Record<string, string[]> = {
+  humanity: [
+    "https://images.unsplash.com/photo-1469570066476-fd757c8d3d95?auto=format&fit=crop&q=80&w=800", // helping hands
+    "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=800", // volunteers food
+    "https://images.unsplash.com/photo-1559027615-cd4628902d4a?auto=format&fit=crop&q=80&w=800", // community
+    "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&q=80&w=800", // friends together
+    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=800", // people laughing
+    "https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&q=80&w=800", // charity
+  ],
+  science: [
+    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=800", // lab research
+    "https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&q=80&w=800", // medical science
+    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800", // earth tech
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800", // circuit tech
+    "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800", // scientist
+    "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=800", // innovation
+  ],
+  nature: [
+    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=800", // forest sun
+    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=80&w=800", // misty hills
+    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=800", // mountains
+    "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800", // planting
+    "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=800", // ocean
+    "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80&w=800", // rainforest
+  ],
+  sports: [
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba6851?auto=format&fit=crop&q=80&w=800", // running track
+    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800", // football
+    "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=800", // cycling
+    "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&q=80&w=800", // athlete
+    "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&q=80&w=800", // training
+    "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800", // team spirit
+  ],
+  arts: [
+    "https://images.unsplash.com/photo-1460661411762-d0c4c8e0b1a5?auto=format&fit=crop&q=80&w=800", // paint brushes
+    "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=800", // art gallery
+    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=80&w=800", // music
+    "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&q=80&w=800", // stage
+    "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&q=80&w=800", // instruments
+    "https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&q=80&w=800", // crafts
+  ],
+  all: [
+    "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?auto=format&fit=crop&q=80&w=800", // sunrise hope
+    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800", // food share
+    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=800", // friends
+    "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=800", // giving
+    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=800", // landscape
+    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=80&w=800", // nature calm
+  ],
 };
+
+function stockFor(id: string, category?: string): string {
+  const pool = CATEGORY_STOCK[category || "all"] || CATEGORY_STOCK.all;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  return pool[Math.abs(hash) % pool.length];
+}
 
 function StoryImage({
   imageUrl,
   category,
+  id = "",
   className = "",
   alt = "",
 }: {
   imageUrl: string | null;
   category?: string;
+  id?: string;
   className?: string;
   alt?: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const showImg = imageUrl && !failed;
-  const grad = CATEGORY_GRADIENTS[category || "all"] || CATEGORY_GRADIENTS.all;
-  const Icon = (CATEGORY_META[category || "all"] || CATEGORY_META.humanity)?.icon || Sun;
-
-  if (showImg) {
-    return (
-      <img
-        src={imageUrl}
-        alt={alt}
-        loading="lazy"
-        className={className}
-        onError={() => setFailed(true)}
-      />
-    );
-  }
+  const realUrl = imageUrl && !failed ? imageUrl : null;
+  const src = realUrl || stockFor(id || "fallback", category);
 
   return (
-    <div className={`bg-gradient-to-br ${grad} flex items-center justify-center ${className}`}>
-      <Icon className="h-8 w-8 text-slate-400/60" strokeWidth={1.5} />
-    </div>
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      className={className}
+      onError={() => {
+        // If the real RSS image fails, fall back to category stock once
+        if (imageUrl && !failed) setFailed(true);
+      }}
+    />
   );
 }
 
@@ -564,6 +613,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                   <StoryImage
                     imageUrl={topStory.imageUrl}
                     category={topStory.category}
+                    id={topStory.id}
                     className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
                   />
                   <span className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
@@ -612,7 +662,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                     <button key={a.id} onClick={() => setSelectedId(a.id)}
                       className={`group shrink-0 w-52 text-left rounded-lg border hover:shadow-md transition-all overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`}>
                       <div className={`h-24 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
-                        <StoryImage imageUrl={a.imageUrl} category={a.category}
+                        <StoryImage imageUrl={a.imageUrl} category={a.category} id={a.id}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                       <div className="p-2.5">
@@ -637,7 +687,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                     <button key={a.id} onClick={() => setSelectedId(a.id)}
                       className={`group shrink-0 w-52 text-left rounded-lg border hover:shadow-md transition-all overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`}>
                       <div className={`h-24 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
-                        <StoryImage imageUrl={a.imageUrl} category={a.category}
+                        <StoryImage imageUrl={a.imageUrl} category={a.category} id={a.id}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                       <div className="p-2.5">
@@ -731,7 +781,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
                     {/* Image */}
                     <div className="relative h-32 bg-slate-100 overflow-hidden shrink-0">
-                      <StoryImage imageUrl={a.imageUrl} category={a.category}
+                      <StoryImage imageUrl={a.imageUrl} category={a.category} id={a.id}
                         className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
                       <button onClick={(e) => { e.stopPropagation(); toggleBookmark(a.id); }}
                         className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1 rounded-md shadow-sm hover:bg-white transition">
@@ -861,13 +911,15 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             <div className="overflow-y-auto p-5 space-y-4">
               <h2 className="text-base sm:text-lg font-black text-slate-900 leading-snug">{selectedArticle.title}</h2>
 
-              {/* Image */}
-              {selectedArticle.imageUrl && (
-                <div className="rounded-xl overflow-hidden bg-slate-100">
-                  <StoryImage imageUrl={selectedArticle.imageUrl} category={selectedArticle.category}
-                    className="w-full max-h-72 object-cover" />
-                </div>
-              )}
+              {/* Image — real RSS image or category-matched stock */}
+              <div className="rounded-xl overflow-hidden bg-slate-100">
+                <StoryImage
+                  imageUrl={selectedArticle.imageUrl}
+                  category={selectedArticle.category}
+                  id={selectedArticle.id}
+                  className="w-full max-h-72 object-cover"
+                />
+              </div>
 
               {/* Source info */}
               <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100">
