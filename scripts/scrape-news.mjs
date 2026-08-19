@@ -543,15 +543,42 @@ function makeSummary(item, maxLen = 420) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// DEDUP — by title hash
+// DEDUP — aggressive title normalization so curly quotes, &amp; vs &,
+// dashes, and punctuation don't create duplicate stories.
 // ═══════════════════════════════════════════════════════════════════
+function normalizeTitle(title) {
+  return String(title || "")
+    .toLowerCase()
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    // Smart quotes / dashes / ellipsis
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+    .replace(/[\u2013\u2014\u2212]/g, "-")
+    .replace(/\u2026/g, "...")
+    // Strip all non-alphanumeric → spaces, collapse
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function makeId(title) {
-  // Normalize entity encoding before hashing — otherwise the same article
-  // can get two different IDs across runs if one XML parse left "&amp;"
-  // un-decoded and another correctly decoded it to "&". Found via a live
-  // duplicate: "...Water & Money" vs "...Water &amp; Money" hashing differently.
-  const normalized = title.toLowerCase().trim().replace(/&amp;/g, "&");
-  return createHash("md5").update(normalized).digest("hex").slice(0, 12);
+  return createHash("md5").update(normalizeTitle(title)).digest("hex").slice(0, 12);
+}
+
+/** Prefer the stronger of two near-duplicate articles */
+function preferArticle(a, b) {
+  const rank = (x) =>
+    (x.llmVerified ? 10000 : 0) +
+    (typeof x.llmScore === "number" ? x.llmScore * 100 : 0) +
+    (x.score || 0) * 10 +
+    (x.imageUrl ? 50 : 0) +
+    (x.region === "singapore" ? 20 : 0) +
+    new Date(x.pubDate || 0).getTime() / 1e13;
+  return rank(a) >= rank(b) ? a : b;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -600,7 +627,7 @@ async function scrapeAllFeeds() {
   const parser = new Parser();
 
   const allArticles = [];
-  const seenIds = new Set();
+  const seenKeys = new Set(); // normalized titles already kept
 
   // Load existing feed to merge & dedup
   let existing = [];
@@ -609,7 +636,7 @@ async function scrapeAllFeeds() {
       const raw = readFileSync(OUTPUT_PATH, "utf-8");
       const parsed = JSON.parse(raw);
       existing = parsed.articles || [];
-      for (const a of existing) seenIds.add(a.id);
+      for (const a of existing) seenKeys.add(normalizeTitle(a.title));
     } catch { /* fresh start */ }
   }
 
@@ -624,9 +651,10 @@ async function scrapeAllFeeds() {
         const title = (item.title || "").trim();
         if (!title) continue;
 
+        const titleKey = normalizeTitle(title);
+        if (!titleKey || seenKeys.has(titleKey)) continue;
+        seenKeys.add(titleKey);
         const id = makeId(title);
-        if (seenIds.has(id)) continue;
-        seenIds.add(id);
 
         const summary = makeSummary(item);
 
@@ -698,16 +726,27 @@ async function scrapeAllFeeds() {
     console.log(`   → ${verifiedCount} LLM-verified, ${allArticles.length - verifiedCount} keyword-only`);
   }
 
-  // Merge with existing, dedup, sort by date, cap at 500
+  // Merge with existing, dedup by normalized title (not fragile raw id),
+  // sort by date, cap at 500
   const merged = [...allArticles, ...existing];
   const dedupMap = new Map();
   for (const a of merged) {
-    if (!dedupMap.has(a.id)) dedupMap.set(a.id, a);
+    const key = normalizeTitle(a.title);
+    if (!key) continue;
+    // Re-stamp id so older crooked ids converge
+    const stamped = { ...a, id: makeId(a.title) };
+    if (!dedupMap.has(key)) {
+      dedupMap.set(key, stamped);
+    } else {
+      dedupMap.set(key, preferArticle(stamped, dedupMap.get(key)));
+    }
   }
 
   const final = Array.from(dedupMap.values())
     .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
     .slice(0, 500);
+
+  console.log(`🧹 Deduped to ${final.length} unique stories (from ${merged.length} raw)`);
 
   const output = {
     lastUpdated: new Date().toISOString(),

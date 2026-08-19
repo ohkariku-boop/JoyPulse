@@ -442,6 +442,14 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
   /* ── filtering & sorting ───────────────────────────────────── */
   const filtered = useMemo(() => {
     let list = articles;
+    // Client-side safety net: collapse near-duplicate titles (quotes/entities)
+    const seen = new Set<string>();
+    list = list.filter((a) => {
+      const key = a.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     if (selectedRegion !== "all") list = list.filter((a) => a.region === selectedRegion);
     if (selectedCategory !== "all") list = list.filter((a) => a.category === selectedCategory);
     if (searchQuery) {
