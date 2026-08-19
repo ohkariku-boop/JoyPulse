@@ -116,160 +116,135 @@ function lsSet(key: string, value: unknown) {
 }
 
 /**
- * Keyword-aware stock photos. We scan title + summary for specific themes
- * (football, music, tech, whales, etc.) and pick a matching image. Falls
- * back to broader category pools, then a general pool. Hash by id so the
- * same story always gets the same photo.
+ * Stock photos — category is the hard boundary so a nature story never
+ * gets a tech image. Within a category we refine with specific keywords.
+ * Only distinctive word-boundary keywords (no short false-positive stems).
+ * All Unsplash IDs are stable, well-known assets.
  */
-const THEME_STOCK: { keys: string[]; images: string[] }[] = [
-  // Sports
-  { keys: ["football", "soccer", "fifa", "premier league", "world cup"], images: [
-    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["basketball", "nba", "dunk"], images: [
-    "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1519861531473-9200262188bf?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["tennis", "wimbledon", "racket"], images: [
-    "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["swim", "swimming", "olympic pool"], images: [
-    "https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["run", "marathon", "athletics", "track"], images: [
-    "https://images.unsplash.com/photo-1461896836934-ffe607ba6851?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["cycle", "cycling", "bike", "bicycle"], images: [
-    "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["badminton", "shuttlecock"], images: [
-    "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800",
-  ]},
-  // Arts & culture
-  { keys: ["music", "concert", "orchestra", "song", "singer", "band", "piano", "guitar"], images: [
-    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["paint", "painting", "artist", "gallery", "museum", "exhibition"], images: [
-    "https://images.unsplash.com/photo-1460661411762-d0c4c8e0b1a5?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["dance", "ballet", "choreograph"], images: [
-    "https://images.unsplash.com/photo-1518834107812-67b0b7c58434?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["film", "cinema", "movie", "theatre", "theater", "drama"], images: [
-    "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["book", "library", "literature", "writer", "author", "novel"], images: [
-    "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&q=80&w=800",
-  ]},
-  // Science & tech
-  { keys: ["tech", "technology", "software", "app", "digital", "startup", "ai ", " artificial", "robot", "chip", "semiconductor"], images: [
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["medical", "hospital", "doctor", "nurse", "patient", "surgery", "vaccine", "health"], images: [
-    "https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["space", "nasa", "satellite", "astronaut", "rocket", "mars"], images: [
-    "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["lab", "research", "scientist", "chemistry", "biology"], images: [
-    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=800",
-  ]},
-  // Nature & animals
-  { keys: ["whale", "dolphin", "ocean", "marine", "coral", "sea "], images: [
-    "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["forest", "tree", "replant", "rainforest", "woodland"], images: [
-    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["dog", "puppy", "canine"], images: [
-    "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["cat", "kitten", "feline"], images: [
-    "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["bird", "eagle", "wildlife", "animal", "rescue animal"], images: [
-    "https://images.unsplash.com/photo-1444464666168-49d633b86797?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["plant", "garden", "farm", "agriculture", "crop"], images: [
-    "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800",
-  ]},
-  // Humanity
-  { keys: ["school", "student", "teacher", "education", "classroom", "university"], images: [
-    "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["food", "meal", "hunger", "kitchen", "hawker", "donate food"], images: [
-    "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["volunteer", "charity", "donate", "donation", "kindness", "help"], images: [
-    "https://images.unsplash.com/photo-1469570066476-fd757c8d3d95?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1559027615-cd4628902d4a?auto=format&fit=crop&q=80&w=800",
-  ]},
-  { keys: ["child", "children", "kid", "youth"], images: [
-    "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&q=80&w=800",
-  ]},
+const U = (id: string) =>
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&q=80&w=800`;
+
+/** Always-safe fallback if even stock fails to load */
+const SAFE_FALLBACK = U("photo-1470071459604-3b5ec3a7fe05");
+
+type ThemeRule = { cat: string; keys: RegExp; images: string[] };
+
+const THEME_RULES: ThemeRule[] = [
+  // sports
+  { cat: "sports", keys: /\b(football|soccer|fifa|premier league|world cup)\b/i,
+    images: [U("photo-1574629810360-7efbbe195018"), U("photo-1431324155629-1a6deb1dec8d")] },
+  { cat: "sports", keys: /\b(basketball|nba)\b/i,
+    images: [U("photo-1546519638-68e109498ffc"), U("photo-1519861531473-9200262188bf")] },
+  { cat: "sports", keys: /\b(tennis|wimbledon)\b/i,
+    images: [U("photo-1554068865-24cecd4e34b8")] },
+  { cat: "sports", keys: /\b(swimming|swimmer)\b/i,
+    images: [U("photo-1530549387789-4c1017266635")] },
+  { cat: "sports", keys: /\b(marathon|athletics|sprinter)\b/i,
+    images: [U("photo-1461896836934-ffe607ba6851"), U("photo-1552674605-db6ffd4facb5")] },
+  { cat: "sports", keys: /\b(cycling|bicycle|cyclist)\b/i,
+    images: [U("photo-1517649763962-0c623066013b")] },
+
+  // arts
+  { cat: "arts", keys: /\b(music|concert|orchestra|piano|guitar|singer|choir)\b/i,
+    images: [U("photo-1493225457124-a3eb161ffa5f"), U("photo-1514320291840-2e0a9bf2a9ae")] },
+  { cat: "arts", keys: /\b(painting|painter|gallery|museum|exhibition)\b/i,
+    images: [U("photo-1460661411762-d0c4c8e0b1a5"), U("photo-1513364776144-60967b0f800f")] },
+  { cat: "arts", keys: /\b(dance|ballet|dancer)\b/i,
+    images: [U("photo-1518834107812-67b0b7c58434")] },
+  { cat: "arts", keys: /\b(cinema|movie|theatre|theater|film festival)\b/i,
+    images: [U("photo-1485846234645-a62644f84728")] },
+  { cat: "arts", keys: /\b(library|literature|novelist)\b/i,
+    images: [U("photo-1481627834876-b7833e8f5570")] },
+
+  // science
+  { cat: "science", keys: /\b(technology|software|startup|artificial intelligence|robot|semiconductor|chipmaker)\b|\bai\b/i,
+    images: [U("photo-1518770660439-4636190af475"), U("photo-1451187580459-43490279c0fa")] },
+  { cat: "science", keys: /\b(hospital|doctor|nurse|surgery|vaccine|medical)\b/i,
+    images: [U("photo-1576086213369-97a306d36557"), U("photo-1579684385127-1ef15d508118")] },
+  { cat: "science", keys: /\b(space|nasa|astronaut|satellite|rocket)\b/i,
+    images: [U("photo-1446776811953-b23d57bd21aa")] },
+  { cat: "science", keys: /\b(laboratory|scientist|chemistry)\b/i,
+    images: [U("photo-1532094349884-543bc11b234d")] },
+
+  // nature
+  { cat: "nature", keys: /\b(whale|dolphin|ocean|marine|coral|underwater)\b/i,
+    images: [U("photo-1475924156734-496f6cac6ec1"), U("photo-1544551763-46a013bb70d5")] },
+  { cat: "nature", keys: /\b(forest|rainforest|woodland|replant|tree planting)\b/i,
+    images: [U("photo-1441974231531-c6227db76b6e"), U("photo-1511497584788-876760111969")] },
+  { cat: "nature", keys: /\b(dog|puppy|canine)\b/i,
+    images: [U("photo-1587300003388-59208cc962cb")] },
+  { cat: "nature", keys: /\b(cat|kitten|feline)\b/i,
+    images: [U("photo-1514888286974-6c03e2ca1dba")] },
+  { cat: "nature", keys: /\b(bird|eagle|wildlife|animal rescue)\b/i,
+    images: [U("photo-1444464666168-49d633b86797")] },
+  { cat: "nature", keys: /\b(garden|farming|agriculture|crop)\b/i,
+    images: [U("photo-1542601906990-b4d3fb778b09")] },
+
+  // humanity
+  { cat: "humanity", keys: /\b(school|student|teacher|classroom|education)\b/i,
+    images: [U("photo-1503676260728-1c00da094a0b")] },
+  { cat: "humanity", keys: /\b(food bank|hunger|hawker|soup kitchen)\b/i,
+    images: [U("photo-1488521787991-ed7bbaae773c"), U("photo-1504674900247-0877df9cc836")] },
+  { cat: "humanity", keys: /\b(volunteer|charity|donation|kindness)\b/i,
+    images: [U("photo-1469570066476-fd757c8d3d95"), U("photo-1559027615-cd4628902d4a")] },
+  { cat: "humanity", keys: /\b(children|childhood)\b/i,
+    images: [U("photo-1503454537195-1dcabb73ffb9")] },
 ];
 
 const CATEGORY_STOCK: Record<string, string[]> = {
   humanity: [
-    "https://images.unsplash.com/photo-1469570066476-fd757c8d3d95?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&q=80&w=800",
+    U("photo-1469570066476-fd757c8d3d95"),
+    U("photo-1529156069898-49953e39b3ac"),
+    U("photo-1559027615-cd4628902d4a"),
   ],
   science: [
-    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800",
+    U("photo-1532094349884-543bc11b234d"),
+    U("photo-1518770660439-4636190af475"),
+    U("photo-1576086213369-97a306d36557"),
   ],
   nature: [
-    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=800",
+    U("photo-1441974231531-c6227db76b6e"),
+    U("photo-1506905925346-21bda4d32df4"),
+    U("photo-1475924156734-496f6cac6ec1"),
   ],
   sports: [
-    "https://images.unsplash.com/photo-1461896836934-ffe607ba6851?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800",
+    U("photo-1461896836934-ffe607ba6851"),
+    U("photo-1574629810360-7efbbe195018"),
+    U("photo-1552674605-db6ffd4facb5"),
   ],
   arts: [
-    "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&q=80&w=800",
+    U("photo-1513364776144-60967b0f800f"),
+    U("photo-1493225457124-a3eb161ffa5f"),
+    U("photo-1460661411762-d0c4c8e0b1a5"),
   ],
   all: [
-    "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=800",
-    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=80&w=800",
+    U("photo-1499209974431-9dddcece7f88"),
+    U("photo-1529156069898-49953e39b3ac"),
+    U("photo-1470071459604-3b5ec3a7fe05"),
   ],
 };
 
 function pickFrom(pool: string[], id: string): string {
+  if (!pool.length) return SAFE_FALLBACK;
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
   return pool[Math.abs(hash) % pool.length];
 }
 
 function stockFor(id: string, category?: string, title?: string, summary?: string): string {
-  const text = `${title || ""} ${summary || ""}`.toLowerCase();
+  const text = `${title || ""} ${summary || ""}`;
+  const cat = (category && CATEGORY_STOCK[category] ? category : "all");
 
-  // 1) Keyword / theme match (most specific)
-  for (const theme of THEME_STOCK) {
-    if (theme.keys.some((k) => text.includes(k))) {
-      return pickFrom(theme.images, id);
+  // Theme match ONLY within this story's category (or if category is "all").
+  // Prevents nature stories matching tech keywords and vice versa.
+  for (const rule of THEME_RULES) {
+    if (rule.cat !== cat && cat !== "all") continue;
+    if (rule.keys.test(text)) {
+      return pickFrom(rule.images, id);
     }
   }
 
-  // 2) Category pool
-  const catPool = CATEGORY_STOCK[category || "all"] || CATEGORY_STOCK.all;
-  return pickFrom(catPool, id);
+  return pickFrom(CATEGORY_STOCK[cat] || CATEGORY_STOCK.all, id);
 }
 
 function StoryImage({
@@ -289,9 +264,14 @@ function StoryImage({
   className?: string;
   alt?: string;
 }) {
-  const [failed, setFailed] = useState(false);
-  const realUrl = imageUrl && !failed ? imageUrl : null;
-  const src = realUrl || stockFor(id || "fallback", category, title, summary);
+  // stage: 0 = real RSS, 1 = category/theme stock, 2 = safe fallback
+  const [stage, setStage] = useState(0);
+  const stock = stockFor(id || "fallback", category, title, summary);
+
+  const src =
+    stage === 0 && imageUrl ? imageUrl :
+    stage <= 1 ? stock :
+    SAFE_FALLBACK;
 
   return (
     <img
@@ -299,9 +279,7 @@ function StoryImage({
       alt={alt}
       loading="lazy"
       className={className}
-      onError={() => {
-        if (imageUrl && !failed) setFailed(true);
-      }}
+      onError={() => setStage((s) => Math.min(s + 1, 2))}
     />
   );
 }
