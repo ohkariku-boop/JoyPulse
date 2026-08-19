@@ -116,84 +116,182 @@ function lsSet(key: string, value: unknown) {
 }
 
 /**
- * Category-matched stock photos (Unsplash) used only when a story has no
- * real RSS image. Multiple per category + hash by article id so the same
- * story always gets the same photo, but different stories don't all look identical.
+ * Keyword-aware stock photos. We scan title + summary for specific themes
+ * (football, music, tech, whales, etc.) and pick a matching image. Falls
+ * back to broader category pools, then a general pool. Hash by id so the
+ * same story always gets the same photo.
  */
+const THEME_STOCK: { keys: string[]; images: string[] }[] = [
+  // Sports
+  { keys: ["football", "soccer", "fifa", "premier league", "world cup"], images: [
+    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["basketball", "nba", "dunk"], images: [
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1519861531473-9200262188bf?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["tennis", "wimbledon", "racket"], images: [
+    "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["swim", "swimming", "olympic pool"], images: [
+    "https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["run", "marathon", "athletics", "track"], images: [
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba6851?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["cycle", "cycling", "bike", "bicycle"], images: [
+    "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["badminton", "shuttlecock"], images: [
+    "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800",
+  ]},
+  // Arts & culture
+  { keys: ["music", "concert", "orchestra", "song", "singer", "band", "piano", "guitar"], images: [
+    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["paint", "painting", "artist", "gallery", "museum", "exhibition"], images: [
+    "https://images.unsplash.com/photo-1460661411762-d0c4c8e0b1a5?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["dance", "ballet", "choreograph"], images: [
+    "https://images.unsplash.com/photo-1518834107812-67b0b7c58434?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["film", "cinema", "movie", "theatre", "theater", "drama"], images: [
+    "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["book", "library", "literature", "writer", "author", "novel"], images: [
+    "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&q=80&w=800",
+  ]},
+  // Science & tech
+  { keys: ["tech", "technology", "software", "app", "digital", "startup", "ai ", " artificial", "robot", "chip", "semiconductor"], images: [
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["medical", "hospital", "doctor", "nurse", "patient", "surgery", "vaccine", "health"], images: [
+    "https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["space", "nasa", "satellite", "astronaut", "rocket", "mars"], images: [
+    "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["lab", "research", "scientist", "chemistry", "biology"], images: [
+    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=800",
+  ]},
+  // Nature & animals
+  { keys: ["whale", "dolphin", "ocean", "marine", "coral", "sea "], images: [
+    "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["forest", "tree", "replant", "rainforest", "woodland"], images: [
+    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["dog", "puppy", "canine"], images: [
+    "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["cat", "kitten", "feline"], images: [
+    "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["bird", "eagle", "wildlife", "animal", "rescue animal"], images: [
+    "https://images.unsplash.com/photo-1444464666168-49d633b86797?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["plant", "garden", "farm", "agriculture", "crop"], images: [
+    "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800",
+  ]},
+  // Humanity
+  { keys: ["school", "student", "teacher", "education", "classroom", "university"], images: [
+    "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["food", "meal", "hunger", "kitchen", "hawker", "donate food"], images: [
+    "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["volunteer", "charity", "donate", "donation", "kindness", "help"], images: [
+    "https://images.unsplash.com/photo-1469570066476-fd757c8d3d95?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1559027615-cd4628902d4a?auto=format&fit=crop&q=80&w=800",
+  ]},
+  { keys: ["child", "children", "kid", "youth"], images: [
+    "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&q=80&w=800",
+  ]},
+];
+
 const CATEGORY_STOCK: Record<string, string[]> = {
   humanity: [
-    "https://images.unsplash.com/photo-1469570066476-fd757c8d3d95?auto=format&fit=crop&q=80&w=800", // helping hands
-    "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=800", // volunteers food
-    "https://images.unsplash.com/photo-1559027615-cd4628902d4a?auto=format&fit=crop&q=80&w=800", // community
-    "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&q=80&w=800", // friends together
-    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=800", // people laughing
-    "https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&q=80&w=800", // charity
+    "https://images.unsplash.com/photo-1469570066476-fd757c8d3d95?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&q=80&w=800",
   ],
   science: [
-    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=800", // lab research
-    "https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&q=80&w=800", // medical science
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800", // earth tech
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800", // circuit tech
-    "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800", // scientist
-    "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=800", // innovation
+    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800",
   ],
   nature: [
-    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=800", // forest sun
-    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=80&w=800", // misty hills
-    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=800", // mountains
-    "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800", // planting
-    "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=800", // ocean
-    "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&q=80&w=800", // rainforest
+    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&q=80&w=800",
   ],
   sports: [
-    "https://images.unsplash.com/photo-1461896836934-ffe607ba6851?auto=format&fit=crop&q=80&w=800", // running track
-    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800", // football
-    "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=800", // cycling
-    "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&q=80&w=800", // athlete
-    "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&q=80&w=800", // training
-    "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800", // team spirit
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba6851?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800",
   ],
   arts: [
-    "https://images.unsplash.com/photo-1460661411762-d0c4c8e0b1a5?auto=format&fit=crop&q=80&w=800", // paint brushes
-    "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=800", // art gallery
-    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=80&w=800", // music
-    "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&q=80&w=800", // stage
-    "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&q=80&w=800", // instruments
-    "https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&q=80&w=800", // crafts
+    "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&q=80&w=800",
   ],
   all: [
-    "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?auto=format&fit=crop&q=80&w=800", // sunrise hope
-    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800", // food share
-    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=800", // friends
-    "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=800", // giving
-    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=800", // landscape
-    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=80&w=800", // nature calm
+    "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&q=80&w=800",
   ],
 };
 
-function stockFor(id: string, category?: string): string {
-  const pool = CATEGORY_STOCK[category || "all"] || CATEGORY_STOCK.all;
+function pickFrom(pool: string[], id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
   return pool[Math.abs(hash) % pool.length];
+}
+
+function stockFor(id: string, category?: string, title?: string, summary?: string): string {
+  const text = `${title || ""} ${summary || ""}`.toLowerCase();
+
+  // 1) Keyword / theme match (most specific)
+  for (const theme of THEME_STOCK) {
+    if (theme.keys.some((k) => text.includes(k))) {
+      return pickFrom(theme.images, id);
+    }
+  }
+
+  // 2) Category pool
+  const catPool = CATEGORY_STOCK[category || "all"] || CATEGORY_STOCK.all;
+  return pickFrom(catPool, id);
 }
 
 function StoryImage({
   imageUrl,
   category,
   id = "",
+  title = "",
+  summary = "",
   className = "",
   alt = "",
 }: {
   imageUrl: string | null;
   category?: string;
   id?: string;
+  title?: string;
+  summary?: string;
   className?: string;
   alt?: string;
 }) {
   const [failed, setFailed] = useState(false);
   const realUrl = imageUrl && !failed ? imageUrl : null;
-  const src = realUrl || stockFor(id || "fallback", category);
+  const src = realUrl || stockFor(id || "fallback", category, title, summary);
 
   return (
     <img
@@ -202,7 +300,6 @@ function StoryImage({
       loading="lazy"
       className={className}
       onError={() => {
-        // If the real RSS image fails, fall back to category stock once
         if (imageUrl && !failed) setFailed(true);
       }}
     />
@@ -614,6 +711,8 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                     imageUrl={topStory.imageUrl}
                     category={topStory.category}
                     id={topStory.id}
+                    title={topStory.title}
+                    summary={topStory.summary}
                     className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
                   />
                   <span className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
@@ -631,7 +730,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                   <h2 className={`font-serif text-base sm:text-lg font-black leading-tight group-hover:text-amber-600 transition-colors line-clamp-2 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
                     {topStory.title}
                   </h2>
-                  <p className={`text-xs leading-relaxed line-clamp-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  <p className={`text-xs leading-relaxed line-clamp-4 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                     {topStory.summary}
                   </p>
                   <span className="text-[11px] font-bold text-amber-600 flex items-center gap-1 mt-0.5">
@@ -663,6 +762,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                       className={`group shrink-0 w-52 text-left rounded-lg border hover:shadow-md transition-all overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`}>
                       <div className={`h-24 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
                         <StoryImage imageUrl={a.imageUrl} category={a.category} id={a.id}
+                          title={a.title} summary={a.summary}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                       <div className="p-2.5">
@@ -688,6 +788,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                       className={`group shrink-0 w-52 text-left rounded-lg border hover:shadow-md transition-all overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`}>
                       <div className={`h-24 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
                         <StoryImage imageUrl={a.imageUrl} category={a.category} id={a.id}
+                          title={a.title} summary={a.summary}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                       <div className="p-2.5">
@@ -782,6 +883,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                     {/* Image */}
                     <div className="relative h-32 bg-slate-100 overflow-hidden shrink-0">
                       <StoryImage imageUrl={a.imageUrl} category={a.category} id={a.id}
+                        title={a.title} summary={a.summary}
                         className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
                       <button onClick={(e) => { e.stopPropagation(); toggleBookmark(a.id); }}
                         className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1 rounded-md shadow-sm hover:bg-white transition">
@@ -801,7 +903,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                       </div>
 
                       <h3 className="font-serif text-[15px] font-bold text-slate-900 leading-tight line-clamp-2 group-hover:text-amber-700 transition-colors">{a.title}</h3>
-                      <p className="text-[10.5px] text-slate-500 line-clamp-2 leading-relaxed">{a.summary}</p>
+                      <p className="text-[10.5px] text-slate-500 line-clamp-4 leading-relaxed">{a.summary}</p>
                       <div className="text-[8px] text-slate-400 font-semibold uppercase tracking-wide">via {a.source}</div>
                     </div>
 
@@ -911,12 +1013,14 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             <div className="overflow-y-auto p-5 space-y-4">
               <h2 className="text-base sm:text-lg font-black text-slate-900 leading-snug">{selectedArticle.title}</h2>
 
-              {/* Image — real RSS image or category-matched stock */}
+              {/* Image — real RSS image or keyword-matched stock */}
               <div className="rounded-xl overflow-hidden bg-slate-100">
                 <StoryImage
                   imageUrl={selectedArticle.imageUrl}
                   category={selectedArticle.category}
                   id={selectedArticle.id}
+                  title={selectedArticle.title}
+                  summary={selectedArticle.summary}
                   className="w-full max-h-72 object-cover"
                 />
               </div>
@@ -927,9 +1031,9 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 <span className="text-slate-400">Preview on JoyPulse · full story on publisher site</span>
               </div>
 
-              {/* Summary */}
-              <div className="bg-amber-500/5 border-l-4 border-amber-400 p-3 rounded-r-xl">
-                <p className="text-xs font-semibold text-slate-800 leading-relaxed">{selectedArticle.summary}</p>
+              {/* Longer summary so readers can decide whether to open the full article */}
+              <div className="bg-amber-500/5 border-l-4 border-amber-400 p-4 rounded-r-xl">
+                <p className="text-[13px] text-slate-800 leading-relaxed">{selectedArticle.summary}</p>
               </div>
 
               <div className="flex gap-2">

@@ -482,19 +482,55 @@ function scoreArticle(title, summary, isPositiveFeed = false) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// SUMMARY GENERATION — clean truncation to ~200 chars
+// SUMMARY GENERATION — longer, readable write-ups (~400 chars)
+// so readers can understand the story before opening the full article.
 // ═══════════════════════════════════════════════════════════════════
-function makeSummary(description, maxLen = 195) {
-  if (!description) return "";
-  // Strip HTML tags
-  let clean = description.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').trim();
-  // Collapse whitespace
-  clean = clean.replace(/\s+/g, " ");
+function stripHtml(html) {
+  if (!html) return "";
+  return String(html)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function makeSummary(item, maxLen = 420) {
+  // Prefer longer body fields so we get a real write-up, not a teaser line
+  const candidates = [
+    item.contentSnippet,
+    item.summary,
+    item.description,
+    item.content,
+    item["content:encoded"],
+  ]
+    .map(stripHtml)
+    .filter((s) => s && s.length >= 20)
+    .sort((a, b) => b.length - a.length); // longest first
+
+  const clean = candidates[0] || "";
+  if (!clean) return "";
   if (clean.length <= maxLen) return clean;
-  // Cut at last word boundary before maxLen
+
+  // Prefer ending on a sentence boundary when possible
   const truncated = clean.slice(0, maxLen);
+  const lastSentence = Math.max(
+    truncated.lastIndexOf(". "),
+    truncated.lastIndexOf("! "),
+    truncated.lastIndexOf("? ")
+  );
+  if (lastSentence > maxLen * 0.5) {
+    return truncated.slice(0, lastSentence + 1).trim();
+  }
   const lastSpace = truncated.lastIndexOf(" ");
-  return (lastSpace > maxLen * 0.6 ? truncated.slice(0, lastSpace) : truncated) + "…";
+  return (lastSpace > maxLen * 0.6 ? truncated.slice(0, lastSpace) : truncated).trim() + "…";
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -583,8 +619,7 @@ async function scrapeAllFeeds() {
         if (seenIds.has(id)) continue;
         seenIds.add(id);
 
-        const rawSummary = item.contentSnippet || item.content || item.summary || item.description || "";
-        const summary = makeSummary(rawSummary);
+        const summary = makeSummary(item);
 
         // Skip items with no usable summary — a bare headline with a blank
         // body reads badly on a card and we can't verify positivity of the
