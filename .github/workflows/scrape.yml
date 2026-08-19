@@ -23,6 +23,10 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          # Need full history so pull --rebase works cleanly against main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
@@ -41,18 +45,48 @@ jobs:
       - name: Commit updated feed.json
         id: commit
         run: |
+          set -e
           git config user.name "JoyPulse Bot"
           git config user.email "bot@joypulse.app"
+
           git add public/feed.json
           # Only commit if feed.json actually changed
           if git diff --cached --quiet; then
             echo "No changes to feed.json"
             echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            git commit -m "🌟 Update feed.json [$(date -u +%Y-%m-%dT%H:%M:%SZ)]"
-            git push
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          git commit -m "🌟 Update feed.json [$(date -u +%Y-%m-%dT%H:%M:%SZ)]"
+
+          # Remote often moves while the scrape runs (UI commits, etc.).
+          # Rebase onto latest main before pushing. On feed.json conflicts,
+          # keep the freshly scraped file.
+          rebase_onto_main() {
+            git fetch origin main
+            if ! git pull --rebase origin main; then
+              echo "Rebase conflict — keeping scraped feed.json"
+              git checkout --theirs -- public/feed.json || true
+              git add public/feed.json
+              GIT_EDITOR=true git rebase --continue
+            fi
+          }
+
+          rebase_onto_main
+
+          for i in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "Push succeeded"
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Push rejected (attempt $i) — rebase and retry"
+            rebase_onto_main
+            sleep 2
+          done
+
+          echo "Failed to push after retries"
+          exit 1
 
       # IMPORTANT: a push made using the automatic GITHUB_TOKEN does NOT
       # trigger other workflows' "on: push" event (this is a deliberate
