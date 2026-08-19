@@ -328,10 +328,16 @@ function extractImageUrl(item) {
 
   const push = (url) => {
     if (!url || typeof url !== "string") return;
-    const cleaned = url.trim().replace(/&amp;/g, "&");
+    let cleaned = url.trim()
+      .replace(/&amp;/gi, "&")
+      .replace(/&quot;/gi, '"')
+      .replace(/^["']|["']$/g, "");
+    if (cleaned.startsWith("//")) cleaned = "https:" + cleaned;
     if (!/^https?:\/\//i.test(cleaned)) return;
-    // Skip tracking pixels / tiny placeholders
-    if (/1x1|pixel|spacer|blank\.gif|transparent/i.test(cleaned)) return;
+    // Skip tracking pixels / tiny placeholders / data URIs
+    if (/1x1|pixel\.|spacer|blank\.gif|transparent|data:image/i.test(cleaned)) return;
+    // Skip obvious non-images
+    if (/\.(mp4|webm|mp3|pdf)(\?|$)/i.test(cleaned)) return;
     candidates.push(cleaned);
   };
 

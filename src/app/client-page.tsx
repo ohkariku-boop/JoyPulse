@@ -247,6 +247,20 @@ function stockFor(id: string, category?: string, title?: string, summary?: strin
   return pickFrom(CATEGORY_STOCK[cat] || CATEGORY_STOCK.all, id);
 }
 
+/** Decode common HTML entities and trim junk from RSS image URLs */
+function cleanImageUrl(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  let u = url.trim()
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/^["']|["']$/g, "");
+  // Protocol-relative → https
+  if (u.startsWith("//")) u = "https:" + u;
+  if (!/^https?:\/\//i.test(u)) return null;
+  if (/1x1|pixel\.|spacer|blank\.gif|transparent\.|data:image\/svg/i.test(u)) return null;
+  return u;
+}
+
 function StoryImage({
   imageUrl,
   category,
@@ -266,18 +280,27 @@ function StoryImage({
 }) {
   // stage: 0 = real RSS, 1 = category/theme stock, 2 = safe fallback
   const [stage, setStage] = useState(0);
+  const cleaned = cleanImageUrl(imageUrl);
   const stock = stockFor(id || "fallback", category, title, summary);
 
+  // Reset fallback stage whenever the article/image changes (avoids sticky broken state)
+  useEffect(() => {
+    setStage(0);
+  }, [id, cleaned]);
+
   const src =
-    stage === 0 && imageUrl ? imageUrl :
+    stage === 0 && cleaned ? cleaned :
     stage <= 1 ? stock :
     SAFE_FALLBACK;
 
   return (
     <img
+      key={`${id}-${stage}-${src}`}
       src={src}
       alt={alt}
       loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
       className={className}
       onError={() => setStage((s) => Math.min(s + 1, 2))}
     />
