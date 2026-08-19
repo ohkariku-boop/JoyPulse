@@ -1,0 +1,23 @@
+{
+  "name": "JoyPulse – Asia's Good News",
+  "short_name": "JoyPulse",
+  "description": "A daily digest of real, positive stories from across Asia.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#fffbeb",
+  "theme_color": "#FBBF24",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

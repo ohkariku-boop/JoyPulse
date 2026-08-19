@@ -12,6 +12,8 @@ export const metadata: Metadata = {
     "feel good news", "positive journalism Asia", "antidote to doomscrolling",
   ],
   authors: [{ name: "JoyPulse" }],
+  applicationName: "JoyPulse",
+  themeColor: "#FBBF24",
   openGraph: {
     title: "JoyPulse – Asia's Good News, in One Place",
     description:
@@ -29,6 +31,16 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
