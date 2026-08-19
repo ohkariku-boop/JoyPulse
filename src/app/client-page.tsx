@@ -254,13 +254,18 @@ function cleanImageUrl(url: string | null | undefined): string | null {
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/^["']|["']$/g, "");
-  // Protocol-relative → https
   if (u.startsWith("//")) u = "https:" + u;
   if (!/^https?:\/\//i.test(u)) return null;
   if (/1x1|pixel\.|spacer|blank\.gif|transparent\.|data:image\/svg/i.test(u)) return null;
   return u;
 }
 
+/**
+ * Bulletproof story image.
+ * - Starts with RSS image if present, otherwise category stock
+ * - onError swaps src in-place (no React state race) → stock → SAFE_FALLBACK
+ * - Parent containers keep a slate background so the area never looks empty
+ */
 function StoryImage({
   imageUrl,
   category,
@@ -278,31 +283,40 @@ function StoryImage({
   className?: string;
   alt?: string;
 }) {
-  // stage: 0 = real RSS, 1 = category/theme stock, 2 = safe fallback
-  const [stage, setStage] = useState(0);
-  const cleaned = cleanImageUrl(imageUrl);
   const stock = stockFor(id || "fallback", category, title, summary);
+  const cleaned = cleanImageUrl(imageUrl);
+  // Prefer stock over flaky publisher CDNs when URL looks incomplete / suspicious
+  const preferStock =
+    !cleaned ||
+    cleaned.length < 40 ||
+    !/\.(jpe?g|png|webp|gif)(\?|$)/i.test(cleaned.split("?")[0]);
 
-  // Reset fallback stage whenever the article/image changes (avoids sticky broken state)
-  useEffect(() => {
-    setStage(0);
-  }, [id, cleaned]);
-
-  const src =
-    stage === 0 && cleaned ? cleaned :
-    stage <= 1 ? stock :
-    SAFE_FALLBACK;
+  const initialSrc = preferStock ? stock : (cleaned as string);
 
   return (
     <img
-      key={`${id}-${stage}-${src}`}
-      src={src}
+      key={id || initialSrc}
+      src={initialSrc}
       alt={alt}
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
       className={className}
-      onError={() => setStage((s) => Math.min(s + 1, 2))}
+      data-stock={stock}
+      data-safe={SAFE_FALLBACK}
+      data-step={preferStock ? "1" : "0"}
+      onError={(e) => {
+        const el = e.currentTarget;
+        const step = el.dataset.step || "0";
+        if (step === "0") {
+          el.dataset.step = "1";
+          el.src = el.dataset.stock || SAFE_FALLBACK;
+        } else if (step === "1") {
+          el.dataset.step = "2";
+          el.src = el.dataset.safe || SAFE_FALLBACK;
+        }
+        // step 2+: stop — avoid infinite loop
+      }}
     />
   );
 }
