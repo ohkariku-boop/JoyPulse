@@ -425,82 +425,99 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         </div>
       </div>
 
-      {/* ── DAILY QUOTE BANNER — moved here from the sidebar per request,
-           sits right below the section nav, full width. ─────────────── */}
-      <div className="bg-amber-50 border-b border-amber-100">
+      {/* ── SEARCH BAR — directly below top navigation ─────────── */}
+      <div className={`border-b ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+          <div className={`rounded-xl border p-1 flex gap-1 ${darkMode ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"}`}>
+            <div className="relative flex-grow flex items-center pl-3">
+              <Search className="absolute left-3.5 text-slate-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search stories, sources, locations…"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setShowCount(20); }}
+                className={`w-full bg-transparent pl-7 pr-3 py-2 text-xs focus:outline-none placeholder-slate-400 ${darkMode ? "text-slate-100" : "text-slate-800"}`}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="p-0.5 rounded-full hover:bg-slate-200 text-slate-400">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "new" | "popular")}
+              className={`text-[11px] font-bold rounded-lg px-2.5 py-1.5 border-0 focus:ring-2 focus:ring-amber-400 ${darkMode ? "bg-slate-700 text-slate-200" : "bg-white text-slate-700"}`}
+            >
+              <option value="new">⏰ Latest</option>
+              <option value="popular">🔥 Top Scored</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* ── DAILY QUOTE BANNER ─────────────────────────────────── */}
+      <div className={`${darkMode ? "bg-amber-950/40 border-amber-900/50" : "bg-amber-50 border-amber-100"} border-b`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-2.5">
           <Gift className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-          <p className="text-[11px] text-amber-900 leading-snug">
+          <p className={`text-[11px] leading-snug ${darkMode ? "text-amber-100" : "text-amber-900"}`}>
             <span className="italic font-semibold">&ldquo;{dailyQuote.text}&rdquo;</span>
             <span className="text-amber-600 font-bold not-italic"> — {dailyQuote.author}</span>
           </p>
         </div>
       </div>
 
-      {/* ── HERO ───────────────────────────────────────────────── */}
-      <section className="bg-gradient-to-b from-amber-50 via-white to-slate-50 py-8 md:py-12 border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-3 border border-amber-200/50">
-            <Sparkles className="h-3 w-3" />
-            {articles.length} Real Positive Stories • Sourced from {new Set(articles.map((a) => a.source)).size} Sources
-          </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-[1.1] max-w-2xl mx-auto">
-            <span className="bg-gradient-to-r from-amber-500 to-rose-500 bg-clip-text text-transparent">Asia&rsquo;s</span> good news, in one place
-          </h1>
-          <p className="mt-2 text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-            Singapore spotlight + the best from across Asia. Real positive stories, filtered for genuine uplift. Zero negativity.
-          </p>
-
-          {/* Search */}
-          <div className="mt-5 max-w-lg mx-auto">
-            <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-1 flex gap-1">
-              <div className="relative flex-grow flex items-center pl-3">
-                <Search className="absolute left-3.5 text-slate-400 h-4 w-4" />
-                <input type="text" placeholder="Search stories, sources, locations…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setShowCount(20); }}
-                  className="w-full bg-transparent pl-7 pr-3 py-2 text-xs focus:outline-none text-slate-800 placeholder-slate-400" />
-                {searchQuery && <button onClick={() => setSearchQuery("")} className="p-0.5 rounded-full hover:bg-slate-100 text-slate-400"><X className="h-3.5 w-3.5" /></button>}
+      {/* ── HERO: text left + top story right ──────────────────── */}
+      <section className={`border-b ${darkMode ? "bg-slate-950 border-slate-800" : "bg-gradient-to-b from-amber-50/80 via-white to-slate-50 border-slate-100"}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-center">
+            {/* Left — hero copy + joy meter */}
+            <div className="space-y-4 text-left">
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${darkMode ? "bg-amber-900/40 text-amber-200 border-amber-700/50" : "bg-amber-100 text-amber-800 border-amber-200/50"}`}>
+                <Sparkles className="h-3 w-3" />
+                {articles.length} Real Positive Stories • {new Set(articles.map((a) => a.source)).size} Sources
               </div>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "new" | "popular")}
-                className="bg-slate-50 text-slate-700 text-[11px] font-bold rounded-xl px-2.5 py-1.5 border-0 focus:ring-2 focus:ring-amber-400">
-                <option value="new">⏰ Latest</option><option value="popular">🔥 Top Scored</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </section>
+              <h1 className={`text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-[1.15] ${darkMode ? "text-white" : "text-slate-900"}`}>
+                <span className="bg-gradient-to-r from-amber-500 to-rose-500 bg-clip-text text-transparent">Asia&rsquo;s</span> good news, in one place
+              </h1>
+              <p className={`text-xs sm:text-sm max-w-md ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                Singapore spotlight + the best from across Asia. Real positive stories, filtered for genuine uplift. Zero negativity.
+              </p>
 
-      {/* ── MAIN ───────────────────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="space-y-6">
-
-            {/* Joy Meter — a playful daily flourish, not a serious metric */}
-            <div className="flex items-center gap-3 bg-white rounded-xl border border-slate-100 shadow-sm px-4 py-2.5">
-              <span className="text-lg leading-none">{joyMeter.emoji}</span>
-              <div className="flex-grow">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Today&rsquo;s Joy Meter</span>
-                  <span className="text-[10px] font-black text-amber-600">{joyMeter.label}</span>
-                </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-amber-400 to-rose-400 rounded-full transition-all duration-700" style={{ width: `${joyMeter.score}%` }} />
+              {/* Joy Meter */}
+              <div className={`flex items-center gap-3 rounded-xl border shadow-sm px-4 py-2.5 max-w-sm ${darkMode ? "bg-slate-900 border-slate-700" : "bg-white border-slate-100"}`}>
+                <span className="text-lg leading-none">{joyMeter.emoji}</span>
+                <div className="flex-grow">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Today&rsquo;s Joy Meter</span>
+                    <span className="text-[10px] font-black text-amber-600">{joyMeter.label}</span>
+                  </div>
+                  <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? "bg-slate-700" : "bg-slate-100"}`}>
+                    <div className="h-full bg-gradient-to-r from-amber-400 to-rose-400 rounded-full transition-all duration-700" style={{ width: `${joyMeter.score}%` }} />
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Today's Top Story — a real lead-story hero instead of every
-                card being equal weight, like a real front page. */}
+            {/* Right — Today's Top Story */}
             {topStory && (
-              <button onClick={() => setSelectedId(topStory.id)}
-                className="group w-full text-left bg-white rounded-2xl border border-amber-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col md:flex-row">
-                <div className="relative md:w-2/5 h-52 md:h-auto bg-slate-100 shrink-0 overflow-hidden">
-                  <img src={topStory.imageUrl || placeholderFor(topStory.id)} alt="" loading="lazy"
+              <button
+                onClick={() => setSelectedId(topStory.id)}
+                className={`group w-full text-left rounded-2xl border shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden ${darkMode ? "bg-slate-900 border-amber-800/40 hover:border-amber-600/50" : "bg-white border-amber-200"}`}
+              >
+                <div className={`relative h-44 sm:h-52 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
+                  <img
+                    src={topStory.imageUrl || placeholderFor(topStory.id)}
+                    alt=""
+                    loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                    onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(topStory.id); }} />
+                    onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(topStory.id); }}
+                  />
                   <span className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
                     <Star className="h-2.5 w-2.5 fill-white" />Today&rsquo;s Top Story
                   </span>
                 </div>
-                <div className="p-5 md:p-6 flex-grow flex flex-col gap-2 justify-center">
+                <div className="p-4 sm:p-5 flex flex-col gap-1.5">
                   <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
                     <span>{topStory.region === "singapore" ? "Singapore" : topStory.region === "asia" ? "Asia" : "World"}</span>
                     <span className="text-slate-300">·</span>
@@ -508,14 +525,25 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                     <span className="text-slate-300">·</span>
                     <span>{topStory.source}</span>
                   </div>
-                  <h2 className="font-serif text-xl md:text-2xl font-black text-slate-900 leading-tight group-hover:text-amber-700 transition-colors">{topStory.title}</h2>
-                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{topStory.summary}</p>
-                  <span className="text-[11px] font-bold text-amber-600 flex items-center gap-1 mt-1">
+                  <h2 className={`font-serif text-base sm:text-lg font-black leading-tight group-hover:text-amber-600 transition-colors line-clamp-2 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
+                    {topStory.title}
+                  </h2>
+                  <p className={`text-xs leading-relaxed line-clamp-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                    {topStory.summary}
+                  </p>
+                  <span className="text-[11px] font-bold text-amber-600 flex items-center gap-1 mt-0.5">
                     Read the story <ArrowRight className="h-3.5 w-3.5" />
                   </span>
                 </div>
               </button>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── MAIN ───────────────────────────────────────────────── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="space-y-6">
 
             {/* Best of the Week — resurfaces the highest-confidence stories
                 from the last 7 days, separate from the reverse-chronological
