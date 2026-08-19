@@ -353,46 +353,104 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         <span key={f.id} className="fixed pointer-events-none z-50 text-3xl animate-float-up select-none" style={{ left: f.x, top: f.y }}>{f.emoji}</span>
       ))}
 
-      {/* ── HEADER (logo + search + actions) ───────────────────── */}
+      {/* ── HEADER ─────────────────────────────────────────────── */}
       <header className={`sticky top-0 backdrop-blur-md border-b z-20 ${darkMode ? "bg-slate-900/90 border-slate-800" : "bg-white/90 border-slate-100"}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-3 h-14">
-          {/* Logo */}
-          <div className={`flex items-center gap-2 shrink-0 ${searchOpen ? "hidden sm:flex" : "flex"}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-14">
+          <div className="flex items-center gap-2">
             <div className="bg-amber-400 p-1.5 rounded-xl text-slate-900 shadow-sm animate-pulse-glow"><Sun className="h-5 w-5 stroke-[2.5]" /></div>
-            <div className="hidden xs:block sm:block">
+            <div>
               <span className={`text-base sm:text-lg font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>JoyPulse<span className="text-amber-500">.</span></span>
-              <p className="text-[8px] sm:text-[9px] font-semibold text-slate-400 uppercase tracking-widest -mt-1 hidden md:block">Asia • Good News Only</p>
+              <p className="text-[8px] sm:text-[9px] font-semibold text-slate-400 uppercase tracking-widest -mt-1">Asia • Good News Only</p>
+            </div>
+          </div>
+          <div className="hidden md:flex items-center gap-4 text-[10px]">
+            <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Your Smiles</p><p className="text-sm font-black text-amber-500 font-mono">{totalMyReactions}</p></div>
+            <div className={`h-5 w-px ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />
+            <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Saved</p><p className="text-sm font-black text-rose-500 font-mono">{bookmarks.size}</p></div>
+            <div className={`h-5 w-px ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />
+            <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Stories</p><p className={`text-sm font-black font-mono ${darkMode ? "text-slate-100" : "text-slate-800"}`}>{articles.length}</p></div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDarkMode((d) => !d)}
+              className={`p-1.5 rounded-lg transition-colors ${darkMode ? "bg-slate-800 text-amber-400 hover:bg-slate-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              aria-label="Toggle dark mode"
+              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {darkMode ? <Sun className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+            </button>
+            <div className="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span className="hidden sm:inline">Updated {timeAgo(lastUpdated)}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ── SECTION NAV: categories + search + regions ─────────── */}
+      <div className={`sticky top-14 z-10 border-b ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            {/* Category tabs */}
+            <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto no-scrollbar flex-1 min-w-0">
+              {availableCategories.map((id) => {
+                const meta = CATEGORY_META[id] || CATEGORY_META.all;
+                const sel = selectedCategory === id;
+                return (
+                  <button key={id} onClick={() => { setSelectedCategory(id); setShowCount(20); }}
+                    className={`shrink-0 py-3 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap border-b-2 transition ${
+                      sel
+                        ? `border-amber-500 ${darkMode ? "text-white" : "text-slate-900"}`
+                        : `border-transparent text-slate-500 ${darkMode ? "hover:text-slate-200" : "hover:text-slate-800"}`
+                    }`}>
+                    {meta.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search — sits next to categories (where Arts & Culture ends) */}
+            <div className={`hidden sm:flex items-center gap-1 rounded-lg border px-2 py-1 shrink-0 w-44 lg:w-52 ${darkMode ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"}`}>
+              <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search…"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setShowCount(20); }}
+                className={`w-full bg-transparent text-xs focus:outline-none placeholder-slate-400 min-w-0 ${darkMode ? "text-slate-100" : "text-slate-800"}`}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="p-0.5 text-slate-400 hover:text-slate-600 shrink-0" aria-label="Clear">
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Mobile search icon */}
+            <button
+              onClick={() => setSearchOpen((o) => !o)}
+              className={`sm:hidden p-1.5 rounded-lg shrink-0 transition-colors ${searchOpen || searchQuery ? "bg-amber-100 text-amber-700" : darkMode ? "text-slate-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-100"}`}
+              aria-label="Search"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+
+            {/* Region tabs — desktop */}
+            <div className="hidden md:flex items-center gap-1 shrink-0">
+              {REGION_TABS.map((r) => (
+                <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(20); }}
+                  className={`px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition ${
+                    selectedRegion === r.id
+                      ? "bg-slate-900 text-white"
+                      : darkMode ? "text-slate-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-100"
+                  }`}>{r.label}</button>
+              ))}
             </div>
           </div>
 
-          {/* Desktop search — always visible, compact */}
-          <div className={`hidden sm:flex flex-1 max-w-xs lg:max-w-sm mx-auto items-center gap-1 rounded-lg border px-2 py-1 ${darkMode ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"}`}>
-            <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-            <input
-              type="text"
-              placeholder="Search stories…"
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setShowCount(20); }}
-              className={`w-full bg-transparent text-xs focus:outline-none placeholder-slate-400 ${darkMode ? "text-slate-100" : "text-slate-800"}`}
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="p-0.5 text-slate-400 hover:text-slate-600 shrink-0" aria-label="Clear search">
-                <X className="h-3 w-3" />
-              </button>
-            )}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as "new" | "popular")}
-              className={`text-[10px] font-bold border-0 bg-transparent focus:ring-0 shrink-0 cursor-pointer ${darkMode ? "text-slate-300" : "text-slate-500"}`}
-            >
-              <option value="new">Latest</option>
-              <option value="popular">Top</option>
-            </select>
-          </div>
-
-          {/* Mobile: expand search */}
+          {/* Mobile: expanded search row */}
           {searchOpen && (
-            <div className={`flex sm:hidden flex-1 items-center gap-1 rounded-lg border px-2 py-1.5 ${darkMode ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"}`}>
+            <div className={`sm:hidden pb-2.5 flex items-center gap-1 rounded-lg border px-2 py-1.5 mb-1 ${darkMode ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"}`}>
               <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
               <input
                 type="text"
@@ -402,77 +460,20 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 onChange={(e) => { setSearchQuery(e.target.value); setShowCount(20); }}
                 className={`w-full bg-transparent text-xs focus:outline-none placeholder-slate-400 ${darkMode ? "text-slate-100" : "text-slate-800"}`}
               />
-              <button onClick={() => { setSearchOpen(false); setSearchQuery(""); }} className="p-0.5 text-slate-400 shrink-0" aria-label="Close search">
+              <button onClick={() => { setSearchOpen(false); setSearchQuery(""); }} className="p-0.5 text-slate-400 shrink-0" aria-label="Close">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
 
-          {/* Right actions */}
-          <div className={`flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto ${searchOpen ? "hidden sm:flex" : "flex"}`}>
-            <div className="hidden lg:flex items-center gap-3 text-[10px] mr-1">
-              <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Smiles</p><p className="text-sm font-black text-amber-500 font-mono">{totalMyReactions}</p></div>
-              <div className={`h-5 w-px ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />
-              <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Saved</p><p className="text-sm font-black text-rose-500 font-mono">{bookmarks.size}</p></div>
-            </div>
-            {/* Mobile search icon */}
-            <button
-              onClick={() => setSearchOpen(true)}
-              className={`sm:hidden p-1.5 rounded-lg transition-colors ${darkMode ? "bg-slate-800 text-slate-300 hover:bg-slate-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-              aria-label="Search"
-            >
-              <Search className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setDarkMode((d) => !d)}
-              className={`p-1.5 rounded-lg transition-colors ${darkMode ? "bg-slate-800 text-amber-400 hover:bg-slate-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-              aria-label="Toggle dark mode"
-              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {darkMode ? <Sun className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-            </button>
-            <div className="hidden sm:flex text-[9px] text-slate-400 font-semibold items-center gap-1">
-              <Clock className="h-3 w-3" />
-              <span className="hidden md:inline">{timeAgo(lastUpdated)}</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* ── SECTION NAV — like a real news site's category strip, sticky
-           directly under the masthead (CNN/BBC-style), instead of filter
-           chips buried inside the content column. ─────────────────── */}
-      <div className={`sticky top-14 z-10 border-b ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 sm:gap-5 overflow-x-auto no-scrollbar">
-              {availableCategories.map((id) => {
-                const meta = CATEGORY_META[id] || CATEGORY_META.all;
-                const sel = selectedCategory === id;
-                return (
-                  <button key={id} onClick={() => { setSelectedCategory(id); setShowCount(20); }}
-                    className={`shrink-0 py-3 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap border-b-2 transition ${
-                      sel ? "border-amber-500 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-800"
-                    }`}>
-                    {meta.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="hidden md:flex items-center gap-1 shrink-0 py-2">
-              {REGION_TABS.map((r) => (
-                <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(20); }}
-                  className={`px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition ${
-                    selectedRegion === r.id ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100"
-                  }`}>{r.label}</button>
-              ))}
-            </div>
-          </div>
+          {/* Mobile region tabs */}
           <div className="md:hidden flex items-center gap-1 overflow-x-auto no-scrollbar pb-2">
             {REGION_TABS.map((r) => (
               <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(20); }}
                 className={`shrink-0 px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition ${
-                  selectedRegion === r.id ? "bg-slate-900 text-white" : "text-slate-500 bg-slate-50"
+                  selectedRegion === r.id
+                    ? "bg-slate-900 text-white"
+                    : darkMode ? "text-slate-400 bg-slate-800" : "text-slate-500 bg-slate-50"
                 }`}>{r.label}</button>
             ))}
           </div>
