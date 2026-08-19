@@ -115,18 +115,49 @@ function lsSet(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* quota */ }
 }
 
-const PLACEHOLDER_IMAGES = [
-  "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=600",
-  "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=80&w=600",
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=600",
-  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&q=80&w=600",
-  "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=600",
-];
+/** Soft category gradients when a story has no real image — intentional, not repeated stock photos */
+const CATEGORY_GRADIENTS: Record<string, string> = {
+  humanity: "from-rose-100 via-amber-50 to-orange-100",
+  science:  "from-sky-100 via-indigo-50 to-blue-100",
+  nature:   "from-emerald-100 via-teal-50 to-green-100",
+  sports:   "from-orange-100 via-amber-50 to-yellow-100",
+  arts:     "from-violet-100 via-fuchsia-50 to-pink-100",
+  all:      "from-amber-100 via-rose-50 to-orange-100",
+};
 
-function placeholderFor(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
-  return PLACEHOLDER_IMAGES[Math.abs(hash) % PLACEHOLDER_IMAGES.length];
+function StoryImage({
+  imageUrl,
+  category,
+  className = "",
+  alt = "",
+}: {
+  imageUrl: string | null;
+  category?: string;
+  className?: string;
+  alt?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const showImg = imageUrl && !failed;
+  const grad = CATEGORY_GRADIENTS[category || "all"] || CATEGORY_GRADIENTS.all;
+  const Icon = (CATEGORY_META[category || "all"] || CATEGORY_META.humanity)?.icon || Sun;
+
+  if (showImg) {
+    return (
+      <img
+        src={imageUrl}
+        alt={alt}
+        loading="lazy"
+        className={className}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className={`bg-gradient-to-br ${grad} flex items-center justify-center ${className}`}>
+      <Icon className="h-8 w-8 text-slate-400/60" strokeWidth={1.5} />
+    </div>
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
@@ -530,12 +561,10 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 className={`group w-full text-left rounded-2xl border shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden ${darkMode ? "bg-slate-900 border-amber-800/40 hover:border-amber-600/50" : "bg-white border-amber-200"}`}
               >
                 <div className={`relative h-44 sm:h-52 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
-                  <img
-                    src={topStory.imageUrl || placeholderFor(topStory.id)}
-                    alt=""
-                    loading="lazy"
+                  <StoryImage
+                    imageUrl={topStory.imageUrl}
+                    category={topStory.category}
                     className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                    onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(topStory.id); }}
                   />
                   <span className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
                     <Star className="h-2.5 w-2.5 fill-white" />Today&rsquo;s Top Story
@@ -583,9 +612,8 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                     <button key={a.id} onClick={() => setSelectedId(a.id)}
                       className={`group shrink-0 w-52 text-left rounded-lg border hover:shadow-md transition-all overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`}>
                       <div className={`h-24 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
-                        <img src={a.imageUrl || placeholderFor(a.id)} alt="" loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(a.id); }} />
+                        <StoryImage imageUrl={a.imageUrl} category={a.category}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                       <div className="p-2.5">
                         <p className={`font-serif text-[12px] font-bold leading-tight line-clamp-2 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>{a.title}</p>
@@ -609,9 +637,8 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                     <button key={a.id} onClick={() => setSelectedId(a.id)}
                       className={`group shrink-0 w-52 text-left rounded-lg border hover:shadow-md transition-all overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-200 hover:border-slate-300"}`}>
                       <div className={`h-24 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
-                        <img src={a.imageUrl || placeholderFor(a.id)} alt="" loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(a.id); }} />
+                        <StoryImage imageUrl={a.imageUrl} category={a.category}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                       <div className="p-2.5">
                         <p className={`font-serif text-[12px] font-bold leading-tight line-clamp-2 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>{a.title}</p>
@@ -699,13 +726,13 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
                 return (
                   <article key={a.id}
-                    className="group bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col">
+                    onClick={() => setSelectedId(a.id)}
+                    className="group bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col cursor-pointer">
 
                     {/* Image */}
                     <div className="relative h-32 bg-slate-100 overflow-hidden shrink-0">
-                      <img src={a.imageUrl || placeholderFor(a.id)} alt="" loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                        onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(a.id); }} />
+                      <StoryImage imageUrl={a.imageUrl} category={a.category}
+                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
                       <button onClick={(e) => { e.stopPropagation(); toggleBookmark(a.id); }}
                         className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1 rounded-md shadow-sm hover:bg-white transition">
                         {isSaved ? <BookmarkCheck className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> : <Bookmark className="h-3.5 w-3.5 text-slate-400" />}
@@ -835,19 +862,17 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               <h2 className="text-base sm:text-lg font-black text-slate-900 leading-snug">{selectedArticle.title}</h2>
 
               {/* Image */}
-              <div className="rounded-xl overflow-hidden bg-slate-100">
-                <img src={selectedArticle.imageUrl || placeholderFor(selectedArticle.id)} alt="" className="w-full max-h-72 object-cover"
-                  onError={(e) => { (e.target as HTMLImageElement).src = placeholderFor(selectedArticle.id); }} />
-              </div>
+              {selectedArticle.imageUrl && (
+                <div className="rounded-xl overflow-hidden bg-slate-100">
+                  <StoryImage imageUrl={selectedArticle.imageUrl} category={selectedArticle.category}
+                    className="w-full max-h-72 object-cover" />
+                </div>
+              )}
 
               {/* Source info */}
               <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                 <span>Source: <strong className="text-amber-600">{selectedArticle.source}</strong></span>
-                {selectedArticle.sourceUrl && (
-                  <a href={selectedArticle.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 text-blue-600 hover:underline font-bold">
-                    <ExternalLink className="h-3 w-3" />Read Original Article ↗
-                  </a>
-                )}
+                <span className="text-slate-400">Preview on JoyPulse · full story on publisher site</span>
               </div>
 
               {/* Summary */}

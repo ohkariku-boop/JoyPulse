@@ -318,6 +318,83 @@ const LOCATION_MAP = [
   { keywords: ["new zealand", "auckland", "wellington"], location: "New Zealand", region: "world" },
 ];
 
+/**
+ * Pull the best available image URL from a parsed RSS item.
+ * Covers enclosure, media:content/thumbnail, itunes:image, and <img> tags
+ * inside content / content:encoded / description / summary.
+ */
+function extractImageUrl(item) {
+  const candidates = [];
+
+  const push = (url) => {
+    if (!url || typeof url !== "string") return;
+    const cleaned = url.trim().replace(/&amp;/g, "&");
+    if (!/^https?:\/\//i.test(cleaned)) return;
+    // Skip tracking pixels / tiny placeholders
+    if (/1x1|pixel|spacer|blank\.gif|transparent/i.test(cleaned)) return;
+    candidates.push(cleaned);
+  };
+
+  // enclosure (often the hero image)
+  if (item.enclosure?.url) push(item.enclosure.url);
+  if (Array.isArray(item.enclosures)) {
+    for (const e of item.enclosures) push(e?.url);
+  }
+
+  // media:content — can be object or array; may nest under media:group
+  const mediaContents = []
+    .concat(item["media:content"] || [])
+    .concat(item["media:group"]?.["media:content"] || []);
+  for (const m of mediaContents) {
+    push(m?.$?.url || m?.url);
+  }
+
+  // media:thumbnail
+  const thumbs = [].concat(item["media:thumbnail"] || []);
+  for (const t of thumbs) push(t?.$?.url || t?.url);
+
+  // itunes:image
+  push(item["itunes:image"]?.$?.href || item["itunes:image"]?.href);
+
+  // image field some feeds use
+  push(item.image?.url || item.image);
+
+  // HTML bodies
+  const htmlBlobs = [
+    item.content,
+    item["content:encoded"],
+    item.description,
+    item.summary,
+  ].filter(Boolean);
+
+  for (const html of htmlBlobs) {
+    // Prefer larger images if width/height attrs hint at size
+    const imgTags = String(html).matchAll(/<img[^>]+>/gi);
+    for (const match of imgTags) {
+      const tag = match[0];
+      const srcMatch = tag.match(/(?:src|data-src|data-lazy-src)=["']([^"']+)["']/i);
+      if (srcMatch) push(srcMatch[1]);
+    }
+    // og-style or background urls sometimes appear
+    const urlMatch = String(html).match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s"'<>]*)?/i);
+    if (urlMatch) push(urlMatch[0]);
+  }
+
+  // Prefer URLs that look like real article images (not icons/logos)
+  const ranked = candidates.sort((a, b) => {
+    const score = (u) => {
+      let s = 0;
+      if (/\.(jpg|jpeg|png|webp)/i.test(u)) s += 2;
+      if (/\/\d{3,4}x\d{3,4}|width=\d{3}|w=\d{3}/i.test(u)) s += 1;
+      if (/logo|icon|avatar|profile|sprite/i.test(u)) s -= 5;
+      return s;
+    };
+    return score(b) - score(a);
+  });
+
+  return ranked[0] || null;
+}
+
 function detectLocation(text) {
   const lower = text.toLowerCase();
   for (const entry of LOCATION_MAP) {
@@ -544,15 +621,9 @@ async function scrapeAllFeeds() {
         const region = loc?.region || feed.region;
         const location = loc?.location || (feed.region === "singapore" ? "Singapore" : feed.region === "asia" ? "Asia" : "World");
 
-        // Extract image
-        let imageUrl = null;
-        if (item.enclosure?.url) imageUrl = item.enclosure.url;
-        else if (item["media:content"]?.$.url) imageUrl = item["media:content"].$.url;
-        else {
-          // Try to find <img> in content
-          const imgMatch = (item.content || item["content:encoded"] || "").match(/<img[^>]+src="([^"]+)"/);
-          if (imgMatch) imageUrl = imgMatch[1];
-        }
+        // Extract image — try many common RSS fields so fewer stories fall back
+        // to generic placeholders on the frontend.
+        const imageUrl = extractImageUrl(item);
 
         allArticles.push({
           id,
