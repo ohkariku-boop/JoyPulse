@@ -81,7 +81,7 @@ function timeAgo(dateStr: string): string {
 
 const CATEGORY_META: Record<string, { icon: typeof Sun; label: string; pillColor: string; textColor: string }> = {
   all:      { icon: Sun,       label: "All Stories",   pillColor: "bg-amber-50 text-amber-700 border-amber-200",      textColor: "text-amber-600"   },
-  humanity: { icon: Heart,     label: "Kindness",      pillColor: "bg-rose-50 text-rose-700 border-rose-200",         textColor: "text-rose-600"    },
+  humanity: { icon: Heart,     label: "Humanity",      pillColor: "bg-rose-50 text-rose-700 border-rose-200",         textColor: "text-rose-600"    },
   science:  { icon: Cpu,       label: "Science & Tech", pillColor: "bg-blue-50 text-blue-700 border-blue-200",        textColor: "text-blue-600"    },
   nature:   { icon: Globe,     label: "Nature",        pillColor: "bg-emerald-50 text-emerald-700 border-emerald-200", textColor: "text-emerald-600" },
   sports:   { icon: Trophy,    label: "Sports",        pillColor: "bg-purple-50 text-purple-700 border-purple-200",   textColor: "text-purple-600"  },
@@ -404,7 +404,8 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery]           = useState("");
   const [sortBy, setSortBy]                     = useState<"new" | "popular">("new");
-  const [showCount, setShowCount]               = useState(20);
+  const [showCount, setShowCount]               = useState(12);
+  const [showSavedShelf, setShowSavedShelf]     = useState(false);
 
   // per-article localStorage reactions  { [articleId]: { happy: n, … } }
   const [myReactions, setMyReactions] = useState<Record<string, Record<ReactionKey, number>>>({});
@@ -588,12 +589,13 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
      Combined score: LLM-verified stories rank far above keyword-only
      ones (they've had a real contextual check, not just pattern
      matching), keyword score is the tiebreaker within each tier. */
-  // Ranking: LLM-verified stories rank higher. Within verified, prefer higher llmScore.
-  // Singapore stories get a small boost to keep local relevance strong.
+  // Ranking: LLM-verified > Singapore > Asia > has image > keyword score
   const combinedScore = useCallback((a: FeedArticle) => {
     const llmBoost = a.llmVerified ? 1000 + (a.llmScore ?? 7) * 10 : 0;
-    const sgBoost = a.region === "singapore" ? 50 : 0;
-    return llmBoost + sgBoost + a.score;
+    const regionBoost =
+      a.region === "singapore" ? 120 : a.region === "asia" ? 60 : 0;
+    const imageBoost = a.imageUrl ? 40 : 0;
+    return llmBoost + regionBoost + imageBoost + a.score;
   }, []);
 
   /**
@@ -618,10 +620,13 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
   const topStory = useMemo(() => {
     const pool = todaysArticles.length > 0 ? todaysArticles : articles;
     if (pool.length === 0) return null;
-    return [...pool].sort((a, b) => {
-      const diff = combinedScore(b) - combinedScore(a);
+    // Prefer stories with real images for the hero
+    const ranked = [...pool].sort((a, b) => {
+      const img = (x: FeedArticle) => (x.imageUrl ? 200 : 0);
+      const diff = combinedScore(b) + img(b) - (combinedScore(a) + img(a));
       return diff !== 0 ? diff : new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
-    })[0];
+    });
+    return ranked[0];
   }, [todaysArticles, articles, combinedScore]);
 
   const titleKey = useCallback(
@@ -629,17 +634,21 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     []
   );
 
-  /** Today's 3 — always try to show exactly 3 unique stories */
+  /** Today's 3 — never repeats Top Story; prefer images + SG/Asia */
   const todaysThree = useMemo(() => {
     const primary = todaysArticles.length > 0 ? todaysArticles : articles;
     const fallback = articles;
     const seen = new Set<string>();
-    const regionBoost = (x: FeedArticle) =>
-      x.region === "singapore" ? 80 : x.region === "asia" ? 40 : 0;
-    const rank = (x: FeedArticle) => combinedScore(x) + regionBoost(x);
+    if (topStory) seen.add(titleKey(topStory.title));
+
+    const rank = (x: FeedArticle) =>
+      combinedScore(x) +
+      (x.imageUrl ? 100 : 0) +
+      (x.region === "singapore" ? 80 : x.region === "asia" ? 40 : 0);
 
     const pick = (pool: FeedArticle[]) =>
       [...pool]
+        .filter((a) => a.id !== topStory?.id)
         .sort((a, b) => rank(b) - rank(a))
         .filter((a) => {
           const key = titleKey(a.title);
@@ -650,12 +659,28 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
     let result = pick(primary).slice(0, 3);
     if (result.length < 3) {
-      // Pad from the full feed so the section never looks half-empty
       const extra = pick(fallback).filter((a) => !result.some((r) => r.id === a.id));
       result = [...result, ...extra].slice(0, 3);
     }
     return result;
-  }, [todaysArticles, articles, combinedScore, titleKey]);
+  }, [todaysArticles, articles, topStory, combinedScore, titleKey]);
+
+  /** Edition label from newest article date (Asia/Singapore friendly) */
+  const editionLabel = useMemo(() => {
+    const src = articles[0]?.pubDate || lastUpdated;
+    if (!src) return "Daily edition";
+    try {
+      const d = new Date(src);
+      return d.toLocaleDateString("en-SG", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        timeZone: "Asia/Singapore",
+      }) + " edition";
+    } catch {
+      return "Daily edition";
+    }
+  }, [articles, lastUpdated]);
 
   const bestOfWeek = useMemo(() => {
     const weekAgo = Date.now() - 7 * 86400000;
@@ -727,35 +752,68 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         <span key={f.id} className="fixed pointer-events-none z-50 text-3xl animate-float-up select-none" style={{ left: f.x, top: f.y }}>{f.emoji}</span>
       ))}
 
+      {/* Skip link for accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-amber-500 focus:text-slate-900 focus:px-3 focus:py-2 focus:rounded-lg focus:text-sm focus:font-bold"
+      >
+        Skip to stories
+      </a>
+
       {/* ── HEADER ─────────────────────────────────────────────── */}
       <header className={`sticky top-0 backdrop-blur-md border-b z-20 ${darkMode ? "bg-slate-900/90 border-slate-800" : "bg-white/90 border-slate-100"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-14">
           <div className="flex items-center gap-2">
-            <div className="bg-amber-400 p-1.5 rounded-xl text-slate-900 shadow-sm animate-pulse-glow"><Sun className="h-5 w-5 stroke-[2.5]" /></div>
+            <div className="bg-amber-400 p-1.5 rounded-xl text-slate-900 shadow-sm"><Sun className="h-5 w-5 stroke-[2.5]" /></div>
             <div>
               <span className={`text-base sm:text-lg font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>JoyPulse<span className="text-amber-500">.</span></span>
-              <p className="text-[8px] sm:text-[9px] font-semibold text-slate-400 uppercase tracking-widest -mt-1">Asia • Good News Only</p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest -mt-0.5">Asia • Good News Only</p>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-4 text-[10px]">
-            <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Your Smiles</p><p className="text-sm font-black text-amber-500 font-mono">{totalMyReactions}</p></div>
-            <div className={`h-5 w-px ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />
-            <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Saved</p><p className="text-sm font-black text-rose-500 font-mono">{bookmarks.size}</p></div>
-            <div className={`h-5 w-px ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />
-            <div className="text-center"><p className="text-[8px] text-slate-400 uppercase font-bold tracking-widest">Stories</p><p className={`text-sm font-black font-mono ${darkMode ? "text-slate-100" : "text-slate-800"}`}>{articles.length}</p></div>
+          <div className="hidden md:flex items-center gap-4 text-[11px]">
+            {totalMyReactions > 0 && (
+              <>
+                <div className="text-center">
+                  <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest">Your Smiles</p>
+                  <p className="text-sm font-black text-amber-500 font-mono">{totalMyReactions}</p>
+                </div>
+                <div className={`h-5 w-px ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />
+              </>
+            )}
+            {bookmarks.size > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSavedShelf(true);
+                    document.getElementById("saved-shelf")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }}
+                  className="text-center hover:opacity-80 transition"
+                  aria-label={`View ${bookmarks.size} saved stories`}
+                >
+                  <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest">Saved</p>
+                  <p className="text-sm font-black text-rose-500 font-mono">{bookmarks.size}</p>
+                </button>
+                <div className={`h-5 w-px ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />
+              </>
+            )}
+            <div className="text-center">
+              <p className="text-[9px] text-slate-400 uppercase font-bold tracking-widest">Stories</p>
+              <p className={`text-sm font-black font-mono ${darkMode ? "text-slate-100" : "text-slate-800"}`}>{articles.length}</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setDarkMode((d) => !d)}
-              className={`p-1.5 rounded-lg transition-colors ${darkMode ? "bg-slate-800 text-amber-400 hover:bg-slate-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              className={`p-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 ${darkMode ? "bg-slate-800 text-amber-400 hover:bg-slate-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
               aria-label="Toggle dark mode"
               title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
             >
               {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <div className="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
+            <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1" title={lastUpdated}>
               <Clock className="h-3 w-3" />
-              <span className="hidden sm:inline">Updated {timeAgo(lastUpdated)}</span>
+              <span className="hidden sm:inline">{editionLabel}</span>
             </div>
           </div>
         </div>
@@ -771,7 +829,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 const meta = CATEGORY_META[id] || CATEGORY_META.all;
                 const sel = selectedCategory === id;
                 return (
-                  <button key={id} onClick={() => { setSelectedCategory(id); setShowCount(20); }}
+                  <button key={id} onClick={() => { setSelectedCategory(id); setShowCount(12); }}
                     className={`shrink-0 py-3 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap border-b-2 transition ${
                       sel
                         ? `border-amber-500 ${darkMode ? "text-white" : "text-slate-900"}`
@@ -790,7 +848,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 type="text"
                 placeholder="Search…"
                 value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setShowCount(20); }}
+                onChange={(e) => { setSearchQuery(e.target.value); setShowCount(12); }}
                 className={`w-full bg-transparent text-xs focus:outline-none placeholder-slate-400 min-w-0 ${darkMode ? "text-slate-100" : "text-slate-800"}`}
               />
               {searchQuery && (
@@ -812,7 +870,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             {/* Region tabs — desktop */}
             <div className="hidden md:flex items-center gap-1 shrink-0">
               {REGION_TABS.map((r) => (
-                <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(20); }}
+                <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(12); }}
                   className={`px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition ${
                     selectedRegion === r.id
                       ? "bg-slate-900 text-white"
@@ -831,7 +889,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 placeholder="Search stories…"
                 value={searchQuery}
                 autoFocus
-                onChange={(e) => { setSearchQuery(e.target.value); setShowCount(20); }}
+                onChange={(e) => { setSearchQuery(e.target.value); setShowCount(12); }}
                 className={`w-full bg-transparent text-xs focus:outline-none placeholder-slate-400 ${darkMode ? "text-slate-100" : "text-slate-800"}`}
               />
               <button onClick={() => { setSearchOpen(false); setSearchQuery(""); }} className="p-0.5 text-slate-400 shrink-0" aria-label="Close">
@@ -843,7 +901,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
           {/* Mobile region tabs */}
           <div className="md:hidden flex items-center gap-1 overflow-x-auto no-scrollbar pb-2">
             {REGION_TABS.map((r) => (
-              <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(20); }}
+              <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(12); }}
                 className={`shrink-0 px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition ${
                   selectedRegion === r.id
                     ? "bg-slate-900 text-white"
@@ -854,11 +912,11 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         </div>
       </div>
 
-      {/* ── DAILY QUOTE BANNER ─────────────────────────────────── */}
-      <div className={`${darkMode ? "bg-amber-950/40 border-amber-900/50" : "bg-amber-50 border-amber-100"} border-b`}>
+      {/* ── DAILY QUOTE BANNER — desktop only to reduce mobile chrome ── */}
+      <div className={`hidden sm:block ${darkMode ? "bg-amber-950/40 border-amber-900/50" : "bg-amber-50 border-amber-100"} border-b`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-2.5">
           <Gift className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-          <p className={`text-[11px] leading-snug ${darkMode ? "text-amber-100" : "text-amber-900"}`}>
+          <p className={`text-[12px] leading-snug ${darkMode ? "text-amber-100" : "text-amber-900"}`}>
             <span className="italic font-semibold">&ldquo;{dailyQuote.text}&rdquo;</span>
             <span className="text-amber-600 font-bold not-italic"> — {dailyQuote.author}</span>
           </p>
@@ -882,17 +940,21 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 Singapore spotlight + the best from across Asia. Real positive stories, filtered for genuine uplift. Zero negativity.
               </p>
 
-              {/* Joy Meter */}
-              <div className={`flex items-center gap-3 rounded-xl border shadow-sm px-4 py-2.5 max-w-sm ${darkMode ? "bg-slate-900 border-slate-700" : "bg-white border-slate-100"}`}>
+              {/* Joy Meter — desktop; explained so it isn’t opaque */}
+              <div
+                className={`hidden sm:flex items-center gap-3 rounded-xl border shadow-sm px-4 py-2.5 max-w-sm ${darkMode ? "bg-slate-900 border-slate-700" : "bg-white border-slate-100"}`}
+                title="Based on today’s story mix and verified uplift scores"
+              >
                 <span className="text-lg leading-none">{joyMeter.emoji}</span>
                 <div className="flex-grow">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Today&rsquo;s Joy Meter</span>
-                    <span className="text-[10px] font-black text-amber-600">{joyMeter.label}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Today&rsquo;s Joy Meter</span>
+                    <span className="text-[11px] font-black text-amber-600">{joyMeter.label}</span>
                   </div>
                   <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? "bg-slate-700" : "bg-slate-100"}`}>
                     <div className="h-full bg-gradient-to-r from-amber-400 to-rose-400 rounded-full transition-all duration-700" style={{ width: `${joyMeter.score}%` }} />
                   </div>
+                  <p className="text-[9px] text-slate-400 mt-1">Based on today&rsquo;s mix of uplifting stories</p>
                 </div>
               </div>
             </div>
@@ -941,7 +1003,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       </section>
 
       {/* ── MAIN ───────────────────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="space-y-6">
 
             {/* Today's 3 — the daily habit block */}
@@ -1100,10 +1162,10 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               <span className="flex items-center gap-1"><Compass className="h-3 w-3" />Sources: CNA, Good News Network, Positive News & more</span>
             </div>
 
-            {/* Saved articles — compact horizontal shelf, only shows when non-empty */}
+            {/* Saved articles — compact horizontal shelf */}
             {bookmarks.size > 0 && (
-              <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 flex items-center gap-3 overflow-x-auto no-scrollbar">
-                <span className="shrink-0 flex items-center gap-1 text-[9px] uppercase font-bold tracking-widest text-slate-400"><BookmarkCheck className="h-3 w-3 text-amber-500" />Saved</span>
+              <div id="saved-shelf" className={`rounded-xl border shadow-sm p-3 flex items-center gap-3 overflow-x-auto no-scrollbar ${darkMode ? "bg-slate-900 border-slate-700" : "bg-white border-slate-100"}`}>
+                <span className="shrink-0 flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest text-slate-400"><BookmarkCheck className="h-3 w-3 text-amber-500" />Saved</span>
                 {articles.filter((a) => bookmarks.has(a.id)).slice(0, 10).map((a) => (
                   <button key={a.id} onClick={() => setSelectedId(a.id)}
                     className="shrink-0 max-w-[180px] text-left bg-slate-50 hover:bg-amber-50 px-2.5 py-1.5 rounded-lg border border-slate-100 transition">
@@ -1115,12 +1177,18 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
             {/* Empty state */}
             {filtered.length === 0 && (
-              <div className="bg-white rounded-2xl p-8 text-center border border-slate-200 shadow-sm">
-                <div className="text-3xl mb-2">🔍</div>
-                <h3 className="text-base font-bold text-slate-900">No stories match your filters</h3>
-                <p className="text-xs text-slate-500 mt-1">Try a different search, region, or category.</p>
-                <button onClick={() => { setSelectedCategory("all"); setSelectedRegion("all"); setSearchQuery(""); }}
-                  className="mt-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-1.5 rounded-lg text-xs transition">Reset All</button>
+              <div className={`rounded-2xl p-8 text-center border shadow-sm ${darkMode ? "bg-slate-900 border-slate-700" : "bg-white border-slate-200"}`}>
+                <div className="text-3xl mb-2">☀️</div>
+                <h3 className={`text-base font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>No stories match right now</h3>
+                <p className={`text-sm mt-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  Try another region or category — or reset to see Asia&rsquo;s good news again.
+                </p>
+                <button
+                  onClick={() => { setSelectedCategory("all"); setSelectedRegion("all"); setSearchQuery(""); setShowCount(12); }}
+                  className="mt-4 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-5 py-2 rounded-xl text-sm transition focus:outline-none focus:ring-2 focus:ring-amber-400"
+                >
+                  Reset filters
+                </button>
               </div>
             )}
 
@@ -1139,30 +1207,38 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                     className="group bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col cursor-pointer">
 
                     {/* Image */}
-                    <div className="relative h-32 bg-slate-100 overflow-hidden shrink-0">
+                    <div className="relative h-36 bg-slate-100 overflow-hidden shrink-0">
                       <StoryImage imageUrl={a.imageUrl} category={a.category} id={a.id}
                         title={a.title} summary={a.summary}
+                        alt=""
                         className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" />
-                      <button onClick={(e) => { e.stopPropagation(); toggleBookmark(a.id); }}
-                        className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1 rounded-md shadow-sm hover:bg-white transition">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleBookmark(a.id); }}
+                        className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1.5 rounded-md shadow-sm hover:bg-white transition focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        aria-label={isSaved ? "Remove bookmark" : "Save story"}
+                      >
                         {isSaved ? <BookmarkCheck className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> : <Bookmark className="h-3.5 w-3.5 text-slate-400" />}
                       </button>
+                      {a.llmVerified && (
+                        <span className="absolute top-2 left-2 bg-emerald-600/95 text-white text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md shadow-sm">
+                          Verified uplift
+                        </span>
+                      )}
                     </div>
 
                     {/* Content */}
-                    <div className="p-3 flex-grow flex flex-col gap-1">
-                      <div className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-wider text-slate-400">
+                    <div className="p-3.5 flex-grow flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex-wrap">
                         <span>{regionLabel}</span>
                         <span className="text-slate-300">·</span>
-                        <span className={catMeta.textColor}>{a.category}</span>
+                        <span className={catMeta.textColor}>{catMeta.label}</span>
                         <span className="text-slate-300">·</span>
-                        <span className="flex items-center gap-0.5"><MapPin className="h-2 w-2" />{a.location}</span>
-                        <span className="ml-auto flex items-center gap-0.5 normal-case font-semibold text-slate-400"><Clock className="h-2 w-2" />{timeAgo(a.pubDate)}</span>
+                        <span className="flex items-center gap-0.5 normal-case font-semibold"><Clock className="h-2.5 w-2.5" />{timeAgo(a.pubDate)}</span>
                       </div>
 
-                      <h3 className="font-serif text-[15px] font-bold text-slate-900 leading-tight line-clamp-2 group-hover:text-amber-700 transition-colors">{a.title}</h3>
-                      <p className="text-[10.5px] text-slate-500 line-clamp-4 leading-relaxed">{a.summary}</p>
-                      <div className="text-[8px] text-slate-400 font-semibold uppercase tracking-wide">via {a.source}</div>
+                      <h3 className="font-serif text-base font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-amber-700 transition-colors">{a.title}</h3>
+                      <p className="text-[13px] text-slate-500 line-clamp-3 leading-relaxed">{a.summary}</p>
+                      <div className="text-[10px] text-slate-400 font-semibold">via {a.source}</div>
                     </div>
 
                     {/* Footer */}
@@ -1191,7 +1267,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             {/* Load more */}
             {showCount < filtered.length && (
               <div className="flex justify-center pt-2">
-                <button onClick={() => setShowCount((p) => p + 20)}
+                <button onClick={() => setShowCount((p) => p + 12)}
                   className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-6 py-2.5 rounded-xl text-xs shadow-sm flex items-center gap-1.5 transition active:scale-95">
                   <ChevronDown className="h-3.5 w-3.5" />
                   Load More ({filtered.length - showCount} remaining)
@@ -1220,7 +1296,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 JoyPulse scrapes <strong>real RSS news feeds</strong> daily across Asia — Singapore first, then Malaysia, Indonesia, Thailand, Vietnam, the Philippines, India and beyond — plus dedicated good-news outlets worldwide.
               </p>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Each article is scored against <strong>200+ positive keywords</strong>, filtered through <strong>100+ negative patterns</strong>, then double-checked by an AI model that scores genuine positivity (1–10). Only real, uplifting stories make it here.
+                We filter for genuine uplift: keyword checks, strict rejection of crime/disaster/markets noise, then an optional AI pass that only keeps stories scoring 7+/10. Singapore and Asia are ranked first. You always read the full piece on the original publisher site.
               </p>
               <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Feed sources</p>

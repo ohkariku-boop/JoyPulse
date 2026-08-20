@@ -2,8 +2,11 @@ name: Scrape RSS Feeds
 
 on:
   schedule:
-    # Runs at 17:00 UTC daily = 01:00 SGT the next day.
-    - cron: "0 17 * * *"
+    # Twice daily for fresher homepage (SGT):
+    # 23:00 UTC = 07:00 SGT (morning edition)
+    # 10:00 UTC = 18:00 SGT (evening refresh)
+    - cron: "0 23 * * *"
+    - cron: "0 10 * * *"
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 permissions:
