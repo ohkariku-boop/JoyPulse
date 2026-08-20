@@ -5,7 +5,7 @@ import {
   Sun, Heart, Sparkles, Cpu, Globe, Trophy, Music, Search,
   X, ArrowRight, Compass, Gift, ExternalLink, MapPin,
   Clock, Briefcase, Bookmark, BookmarkCheck, ChevronDown,
-  ChevronLeft, ChevronRight, Star, TrendingUp, Moon,
+  ChevronLeft, ChevronRight, Star, TrendingUp, Moon, Share2,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════ */
@@ -447,23 +447,68 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const shareStory = useCallback(async (article: FeedArticle) => {
-    const url = article.sourceUrl || (typeof window !== "undefined" ? window.location.href : "https://ohkariku-boop.github.io/JoyPulse/");
-    const text = `${article.title}\n\n✨ Found on JoyPulse — Asia's Good News\n`;
-    try {
-      if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({ title: article.title, text, url });
-        showToast("Shared! ✨");
-      } else if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(`${text}${url}`);
-        showToast("Link copied — paste anywhere!");
-      } else {
+  const sharePayload = useCallback((article: FeedArticle) => {
+    const url =
+      article.sourceUrl ||
+      (typeof window !== "undefined" ? window.location.href : "https://ohkariku-boop.github.io/JoyPulse/");
+    const text = `${article.title}\n\n✨ Found on JoyPulse — Asia's good news\n`;
+    return { url, text, title: article.title };
+  }, []);
+
+  /** Native share sheet when available; otherwise copy link */
+  const shareStory = useCallback(
+    async (article: FeedArticle) => {
+      const { url, text, title } = sharePayload(article);
+      try {
+        if (typeof navigator !== "undefined" && navigator.share) {
+          await navigator.share({ title, text, url });
+          showToast("Shared! ✨");
+          return;
+        }
+        if (typeof navigator !== "undefined" && navigator.clipboard) {
+          await navigator.clipboard.writeText(`${text}${url}`);
+          showToast("Link copied — paste anywhere!");
+          return;
+        }
         showToast("Copy this link: " + url);
+      } catch {
+        /* user cancelled */
       }
-    } catch {
-      /* user cancelled share */
-    }
-  }, [showToast]);
+    },
+    [sharePayload, showToast]
+  );
+
+  const shareTo = useCallback(
+    async (article: FeedArticle, channel: "whatsapp" | "telegram" | "x" | "facebook" | "copy") => {
+      const { url, text, title } = sharePayload(article);
+      const encodedUrl = encodeURIComponent(url);
+      const encodedText = encodeURIComponent(text + url);
+      const encodedTitle = encodeURIComponent(title);
+      try {
+        if (channel === "copy") {
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(`${text}${url}`);
+            showToast("Link copied!");
+          } else {
+            showToast(url);
+          }
+          return;
+        }
+        const href =
+          channel === "whatsapp"
+            ? `https://wa.me/?text=${encodedText}`
+            : channel === "telegram"
+              ? `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`
+              : channel === "x"
+                ? `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`
+                : `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+        window.open(href, "_blank", "noopener,noreferrer,width=600,height=500");
+      } catch {
+        showToast("Couldn’t open share — try copy link");
+      }
+    },
+    [sharePayload, showToast]
+  );
 
   const handleNewsletter = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -584,6 +629,45 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
   const visible = filtered.slice(0, showCount);
   const selectedArticle = selectedId ? articles.find((a) => a.id === selectedId) || null : null;
+  const modalRef = React.useRef<HTMLDivElement>(null);
+  const closeModalBtnRef = React.useRef<HTMLButtonElement>(null);
+
+  // Modal: Escape to close, focus close button, lock body scroll
+  useEffect(() => {
+    if (!selectedArticle) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    // Focus the close control for keyboard users
+    closeModalBtnRef.current?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSelectedId(null);
+        return;
+      }
+      // Simple focus trap inside modal
+      if (e.key !== "Tab" || !modalRef.current) return;
+      const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [selectedArticle]);
 
   /* ── Today's Top Story / Best of the Week / Joy Meter ─────────
      Combined score: LLM-verified stories rank far above keyword-only
@@ -829,12 +913,17 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 const meta = CATEGORY_META[id] || CATEGORY_META.all;
                 const sel = selectedCategory === id;
                 return (
-                  <button key={id} onClick={() => { setSelectedCategory(id); setShowCount(12); }}
-                    className={`shrink-0 py-3 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap border-b-2 transition ${
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => { setSelectedCategory(id); setShowCount(12); }}
+                    aria-pressed={sel}
+                    className={`shrink-0 py-3 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap border-b-2 transition focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-inset ${
                       sel
                         ? `border-amber-500 ${darkMode ? "text-white" : "text-slate-900"}`
                         : `border-transparent text-slate-500 ${darkMode ? "hover:text-slate-200" : "hover:text-slate-800"}`
-                    }`}>
+                    }`}
+                  >
                     {meta.label}
                   </button>
                 );
@@ -1202,9 +1291,20 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 const regionLabel = a.region === "singapore" ? "Singapore" : a.region === "asia" ? "Asia" : "World";
 
                 return (
-                  <article key={a.id}
+                  <article
+                    key={a.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Open story: ${a.title}`}
                     onClick={() => setSelectedId(a.id)}
-                    className="group bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col cursor-pointer">
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedId(a.id);
+                      }
+                    }}
+                    className="group bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2"
+                  >
 
                     {/* Image */}
                     <div className="relative h-36 bg-slate-100 overflow-hidden shrink-0">
@@ -1242,20 +1342,45 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                     </div>
 
                     {/* Footer */}
-                    <div className="px-3 pb-2.5 pt-1.5 border-t border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); addReaction(a.id, "happy", e); }}
-                          className="flex items-center gap-0.5 hover:bg-amber-50 text-slate-500 hover:text-amber-700 px-1.5 py-0.5 rounded-md text-[10px] font-bold transition active:scale-95">
+                    <div className="px-3 pb-2.5 pt-1.5 border-t border-slate-100 flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); addReaction(a.id, "happy", e); }}
+                          className="flex items-center gap-0.5 hover:bg-amber-50 text-slate-500 hover:text-amber-700 px-1.5 py-1 rounded-md text-[11px] font-bold transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                          aria-label="React happy"
+                        >
                           😄 {totalRx > 0 && <span className="font-mono">{totalRx}</span>}
                         </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); shareTo(a, "whatsapp"); }}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition focus:outline-none focus:ring-2 focus:ring-amber-400"
+                          aria-label="Share on WhatsApp"
+                          title="WhatsApp"
+                        >
+                          <Share2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setSelectedId(a.id)} className="text-slate-400 hover:text-amber-600 font-bold text-[10px] flex items-center gap-0.5 transition">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setSelectedId(a.id); }}
+                          className="text-slate-500 hover:text-amber-600 font-bold text-[11px] flex items-center gap-0.5 transition focus:outline-none focus:ring-2 focus:ring-amber-400 rounded"
+                        >
                           More <ArrowRight className="h-3 w-3" />
                         </button>
                         {a.sourceUrl && (
-                          <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                            className="text-slate-400 hover:text-blue-600 transition"><ExternalLink className="h-3 w-3" /></a>
+                          <a
+                            href={a.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-slate-400 hover:text-blue-600 transition p-1 focus:outline-none focus:ring-2 focus:ring-amber-400 rounded"
+                            aria-label="Open original article"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
                         )}
                       </div>
                     </div>
@@ -1282,8 +1407,13 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 relative overflow-hidden">
           <div className="absolute top-0 right-0 h-24 w-24 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
-          <button onClick={() => setHowItWorksOpen((v) => !v)}
-            className="w-full flex items-center justify-between gap-1.5 p-5 text-left">
+          <button
+            type="button"
+            onClick={() => setHowItWorksOpen((v) => !v)}
+            aria-expanded={howItWorksOpen}
+            aria-controls="how-it-works-panel"
+            className="w-full flex items-center justify-between gap-1.5 p-5 text-left focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-inset"
+          >
             <div className="flex items-center gap-1.5">
               <span className="flex h-2.5 w-2.5 relative"><span className="animate-ping absolute h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative rounded-full h-2.5 w-2.5 bg-emerald-500" /></span>
               <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">How It Works</h3>
@@ -1291,7 +1421,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${howItWorksOpen ? "rotate-180" : ""}`} />
           </button>
           {howItWorksOpen && (
-            <div className="px-5 pb-5 space-y-3">
+            <div id="how-it-works-panel" className="px-5 pb-5 space-y-3">
               <p className="text-xs text-slate-300 leading-relaxed">
                 JoyPulse scrapes <strong>real RSS news feeds</strong> daily across Asia — Singapore first, then Malaysia, Indonesia, Thailand, Vietnam, the Philippines, India and beyond — plus dedicated good-news outlets worldwide.
               </p>
@@ -1328,26 +1458,48 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
       {/* ── ARTICLE DETAIL MODAL ───────────────────────────────── */}
       {selectedArticle && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 overflow-y-auto" onClick={() => setSelectedId(null)}>
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh] animate-slide-up" onClick={(e) => e.stopPropagation()}>
-
+        <div
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 overflow-y-auto"
+          onClick={() => setSelectedId(null)}
+          role="presentation"
+        >
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="story-modal-title"
+            className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh] animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="p-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-              <div className="flex items-center gap-1.5 text-[9px]">
+              <div className="flex items-center gap-1.5 text-[10px]">
                 <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
                   selectedArticle.region === "singapore" ? "bg-red-50 text-red-600 border-red-100" : selectedArticle.region === "asia" ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-slate-100 text-slate-600 border-slate-200"
                 }`}>{selectedArticle.region}</span>
                 <span className="text-slate-400">📍 {selectedArticle.location}</span>
                 <span className="text-slate-400">• {timeAgo(selectedArticle.pubDate)}</span>
+                {selectedArticle.llmVerified && (
+                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-bold uppercase">Verified uplift</span>
+                )}
               </div>
-              <button onClick={() => setSelectedId(null)} className="p-1 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-700 transition"><X className="h-4 w-4" /></button>
+              <button
+                ref={closeModalBtnRef}
+                type="button"
+                onClick={() => setSelectedId(null)}
+                className="p-1.5 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-700 transition focus:outline-none focus:ring-2 focus:ring-amber-400"
+                aria-label="Close story"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
             {/* Body */}
             <div className="overflow-y-auto p-5 space-y-4">
-              <h2 className="text-base sm:text-lg font-black text-slate-900 leading-snug">{selectedArticle.title}</h2>
+              <h2 id="story-modal-title" className="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                {selectedArticle.title}
+              </h2>
 
-              {/* Image — real RSS image or keyword-matched stock */}
               <div className="rounded-xl overflow-hidden bg-slate-100">
                 <StoryImage
                   imageUrl={selectedArticle.imageUrl}
@@ -1355,75 +1507,119 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                   id={selectedArticle.id}
                   title={selectedArticle.title}
                   summary={selectedArticle.summary}
+                  alt=""
                   className="w-full max-h-72 object-cover"
                 />
               </div>
 
-              {/* Source info */}
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                 <span>Source: <strong className="text-amber-600">{selectedArticle.source}</strong></span>
                 <span className="text-slate-400">Preview on JoyPulse · full story on publisher site</span>
               </div>
 
-              {/* Longer summary so readers can decide whether to open the full article */}
               <div className="bg-amber-500/5 border-l-4 border-amber-400 p-4 rounded-r-xl">
-                <p className="text-[13px] text-slate-800 leading-relaxed">{selectedArticle.summary}</p>
+                <p className="text-[14px] text-slate-800 leading-relaxed">{selectedArticle.summary}</p>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {selectedArticle.sourceUrl && (
-                  <a href={selectedArticle.sourceUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-white text-center font-bold py-2.5 rounded-xl text-xs shadow transition active:scale-[0.98]">
+                  <a
+                    href={selectedArticle.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 min-w-[140px] bg-slate-900 hover:bg-slate-800 text-white text-center font-bold py-2.5 rounded-xl text-sm shadow transition active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  >
                     Read Full Story →
                   </a>
                 )}
                 <button
+                  type="button"
                   onClick={() => shareStory(selectedArticle)}
-                  className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs shadow transition active:scale-[0.98]"
+                  className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-sm shadow transition active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-amber-400"
                 >
-                  Share ✨
+                  Share
                 </button>
                 <button
+                  type="button"
                   onClick={() => toggleBookmark(selectedArticle.id)}
-                  className={`px-3 py-2.5 rounded-xl border font-bold text-xs transition active:scale-[0.98] ${bookmarks.has(selectedArticle.id) ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  className={`px-3 py-2.5 rounded-xl border font-bold text-sm transition active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-amber-400 ${bookmarks.has(selectedArticle.id) ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  aria-label={bookmarks.has(selectedArticle.id) ? "Remove bookmark" : "Save story"}
                 >
                   {bookmarks.has(selectedArticle.id) ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
                 </button>
               </div>
 
+              {/* Social share row */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Share this story</p>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {(
+                    [
+                      { id: "whatsapp" as const, label: "WhatsApp", className: "bg-emerald-50 text-emerald-800 border-emerald-100 hover:bg-emerald-100" },
+                      { id: "telegram" as const, label: "Telegram", className: "bg-sky-50 text-sky-800 border-sky-100 hover:bg-sky-100" },
+                      { id: "x" as const, label: "X", className: "bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200" },
+                      { id: "facebook" as const, label: "Facebook", className: "bg-blue-50 text-blue-800 border-blue-100 hover:bg-blue-100" },
+                      { id: "copy" as const, label: "Copy link", className: "bg-amber-50 text-amber-900 border-amber-100 hover:bg-amber-100" },
+                    ]
+                  ).map((ch) => (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      onClick={() => shareTo(selectedArticle, ch.id)}
+                      className={`px-2 py-2 rounded-xl border text-xs font-bold transition focus:outline-none focus:ring-2 focus:ring-amber-400 ${ch.className}`}
+                    >
+                      {ch.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Reactions */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center space-y-2.5">
-                <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-wider">How does this make you feel?</h4>
-                <div className="grid grid-cols-4 gap-1.5">
+                <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-wider">How does this make you feel?</h4>
+                <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Reactions">
                   {REACTION_TYPES.map((rt) => {
                     const rx = myReactions[selectedArticle.id] || { happy: 0, heart: 0, celebrate: 0, mindblown: 0 };
                     return (
-                      <button key={rt.key} onClick={(e) => addReaction(selectedArticle.id, rt.key, e)}
-                        className="bg-white hover:bg-amber-50 border border-slate-200 p-2 rounded-xl transition active:scale-95 flex flex-col items-center gap-0.5 shadow-sm cursor-pointer">
-                        <span className="text-xl">{rt.emoji}</span>
-                        <span className="text-[7px] font-black uppercase text-slate-400">{rt.label}</span>
-                        <span className="text-[10px] font-mono font-black text-slate-800">{rx[rt.key]}</span>
+                      <button
+                        key={rt.key}
+                        type="button"
+                        onClick={(e) => addReaction(selectedArticle.id, rt.key, e)}
+                        className="bg-white hover:bg-amber-50 border border-slate-200 p-2 rounded-xl transition active:scale-95 flex flex-col items-center gap-0.5 shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        aria-label={`${rt.label}, ${rx[rt.key]} times`}
+                      >
+                        <span className="text-xl" aria-hidden="true">{rt.emoji}</span>
+                        <span className="text-[9px] font-black uppercase text-slate-400">{rt.label}</span>
+                        <span className="text-[11px] font-mono font-black text-slate-800">{rx[rt.key]}</span>
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-[8px] text-slate-400">Your reactions are saved locally in this browser only.</p>
+                <p className="text-[10px] text-slate-400">Your reactions are saved locally in this browser only.</p>
               </div>
 
-              {/* Bookmark */}
-              <button onClick={() => toggleBookmark(selectedArticle.id)}
-                className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold border transition active:scale-[0.98] ${
+              <button
+                type="button"
+                onClick={() => toggleBookmark(selectedArticle.id)}
+                className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold border transition active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-amber-400 ${
                   bookmarks.has(selectedArticle.id)
                     ? "bg-amber-50 border-amber-200 text-amber-700"
                     : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                }`}>
+                }`}
+              >
                 {bookmarks.has(selectedArticle.id) ? <BookmarkCheck className="h-3.5 w-3.5" /> : <Bookmark className="h-3.5 w-3.5" />}
                 {bookmarks.has(selectedArticle.id) ? "Saved ✓" : "Save for Later"}
               </button>
             </div>
 
             <div className="p-3 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
-              <button onClick={() => setSelectedId(null)} className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-1.5 rounded-xl text-xs shadow transition active:scale-95">Close</button>
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2 rounded-xl text-sm shadow transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
