@@ -421,9 +421,9 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
   const [darkMode, setDarkMode] = useState(false);
   // mobile search expand
   const [searchOpen, setSearchOpen] = useState(false);
-  // newsletter email (client-side only for now)
+  // newsletter
   const [email, setEmail] = useState("");
-  const [emailStatus, setEmailStatus] = useState<"idle" | "ok" | "error">("idle");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "ok" | "error" | "loading">("idle");
 
   /* ── hydrate from localStorage ─────────────────────────────── */
   useEffect(() => {
@@ -464,22 +464,66 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     }
   }, [showToast]);
 
-  const handleNewsletter = useCallback((e: React.FormEvent) => {
+  const handleNewsletter = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !email.includes("@")) {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes("@") || !trimmed.includes(".")) {
       setEmailStatus("error");
       showToast("Please enter a valid email");
       return;
     }
-    // Store locally for now; later wire to Buttondown/Beehiiv/Resend
-    const list: string[] = lsGet("jp_newsletter_emails", []);
-    if (!list.includes(email.toLowerCase())) {
-      list.push(email.toLowerCase());
-      lsSet("jp_newsletter_emails", list);
+    setEmailStatus("loading");
+
+    // Prefer real provider endpoints (set at build time via GitHub Actions secrets).
+    // FORMSPREE_ID → Formspree form. NEWSLETTER_EMAIL → FormSubmit.co notify inbox.
+    // BUTTONDOWN_USER → Buttondown list.
+    const formspreeId = process.env.NEXT_PUBLIC_FORMSPREE_ID || "";
+    const notifyEmail = process.env.NEXT_PUBLIC_NEWSLETTER_EMAIL || "";
+    const buttondownUser = process.env.NEXT_PUBLIC_BUTTONDOWN_USER || "";
+
+    try {
+      let sent = false;
+
+      if (formspreeId) {
+        const res = await fetch(`https://formspree.io/f/${formspreeId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ email: trimmed, source: "JoyPulse", _subject: "JoyPulse newsletter signup" }),
+        });
+        if (!res.ok) throw new Error("Formspree error");
+        sent = true;
+      } else if (buttondownUser) {
+        const res = await fetch(`https://buttondown.email/api/emails/embed-subscribe/${buttondownUser}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ email: trimmed }),
+        });
+        if (!res.ok && res.status !== 204) throw new Error("Buttondown error");
+        sent = true;
+      } else if (notifyEmail) {
+        const res = await fetch(`https://formsubmit.co/ajax/${notifyEmail}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ email: trimmed, _subject: "JoyPulse newsletter signup", message: `${trimmed} joined the JoyPulse digest` }),
+        });
+        if (!res.ok) throw new Error("FormSubmit error");
+        sent = true;
+      }
+
+      // Always keep a local backup list (useful before a provider is configured)
+      const list: string[] = lsGet("jp_newsletter_emails", []);
+      if (!list.includes(trimmed)) {
+        list.push(trimmed);
+        lsSet("jp_newsletter_emails", list);
+      }
+
+      setEmailStatus("ok");
+      setEmail("");
+      showToast(sent ? "You're in! Watch your inbox for good news ☀️" : "You're on the list! Digest coming soon ☀️");
+    } catch {
+      setEmailStatus("error");
+      showToast("Couldn't subscribe right now — please try again");
     }
-    setEmailStatus("ok");
-    setEmail("");
-    showToast("You're on the list! Digest coming soon ☀️");
   }, [email, showToast]);
 
   const triggerFloat = useCallback((cx: number, cy: number, emoji: string) => {
@@ -573,9 +617,30 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     []
   );
 
+  /** Today's 3 — the daily habit block: top uplifting stories for the latest day */
+  const todaysThree = useMemo(() => {
+    const pool = todaysArticles.length > 0 ? todaysArticles : articles.slice(0, 40);
+    const seen = new Set<string>();
+    return [...pool]
+      .sort((a, b) => {
+        // Prefer Singapore / Asia, then combined score
+        const regionBoost = (x: FeedArticle) =>
+          x.region === "singapore" ? 80 : x.region === "asia" ? 40 : 0;
+        return combinedScore(b) + regionBoost(b) - (combinedScore(a) + regionBoost(a));
+      })
+      .filter((a) => {
+        const key = titleKey(a.title);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 3);
+  }, [todaysArticles, articles, combinedScore, titleKey]);
+
   const bestOfWeek = useMemo(() => {
     const weekAgo = Date.now() - 7 * 86400000;
     const seen = new Set<string>();
+    for (const a of todaysThree) seen.add(titleKey(a.title));
     if (topStory) seen.add(titleKey(topStory.title));
     return [...articles]
       .filter((a) => new Date(a.pubDate).getTime() >= weekAgo && a.id !== topStory?.id)
@@ -587,12 +652,13 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         return true;
       })
       .slice(0, 8);
-  }, [articles, topStory, combinedScore, titleKey]);
+  }, [articles, topStory, todaysThree, combinedScore, titleKey]);
 
-  // Singapore-only picks, excluding top story + anything already in Best of the Week
+  // Singapore-only picks, excluding Today's 3 / top story / Best of the Week
   const singaporeSpotlight = useMemo(() => {
     const seen = new Set<string>();
     if (topStory) seen.add(titleKey(topStory.title));
+    for (const a of todaysThree) seen.add(titleKey(a.title));
     for (const a of bestOfWeek) seen.add(titleKey(a.title));
     return [...articles]
       .filter((a) => a.region === "singapore" && a.id !== topStory?.id)
@@ -604,7 +670,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         return true;
       })
       .slice(0, 6);
-  }, [articles, topStory, bestOfWeek, combinedScore, titleKey]);
+  }, [articles, topStory, todaysThree, bestOfWeek, combinedScore, titleKey]);
 
   const joyMeter = useMemo(() => {
     const pool = todaysArticles.length >= 3 ? todaysArticles : articles.slice(0, 20);
@@ -858,6 +924,63 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="space-y-6">
 
+            {/* Today's 3 — the daily habit block */}
+            {todaysThree.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Sun className="h-3.5 w-3.5 text-amber-500" />
+                    <h3 className={`text-[10px] font-black uppercase tracking-widest ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      Today&rsquo;s 3
+                    </h3>
+                  </div>
+                  <span className={`text-[9px] font-semibold ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                    Start your day with these
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {todaysThree.map((a, i) => (
+                    <button
+                      key={a.id}
+                      onClick={() => setSelectedId(a.id)}
+                      className={`group text-left rounded-xl border overflow-hidden hover:shadow-md transition-all ${
+                        darkMode
+                          ? "bg-slate-900 border-slate-700 hover:border-amber-700/50"
+                          : "bg-white border-slate-200 hover:border-amber-300"
+                      }`}
+                    >
+                      <div className={`relative h-28 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
+                        <StoryImage
+                          imageUrl={a.imageUrl}
+                          category={a.category}
+                          id={a.id}
+                          title={a.title}
+                          summary={a.summary}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <span className="absolute top-2 left-2 h-6 w-6 rounded-full bg-amber-500 text-white text-[11px] font-black flex items-center justify-center shadow">
+                          {i + 1}
+                        </span>
+                      </div>
+                      <div className="p-3 space-y-1">
+                        <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400">
+                          {a.region === "singapore" ? "Singapore" : a.region === "asia" ? "Asia" : "World"}
+                          <span className="text-slate-300"> · </span>
+                          {a.category}
+                        </p>
+                        <p className={`font-serif text-[13px] font-bold leading-snug line-clamp-2 group-hover:text-amber-600 transition-colors ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
+                          {a.title}
+                        </p>
+                        <p className={`text-[10px] leading-relaxed line-clamp-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                          {a.summary}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Best of the Week — resurfaces the highest-confidence stories
                 from the last 7 days, separate from the reverse-chronological
                 main grid below. */}
@@ -927,8 +1050,12 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                     placeholder="you@email.com"
                     className={`flex-1 sm:w-48 px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-amber-400 ${darkMode ? "bg-slate-800 border-slate-600 text-white placeholder-slate-500" : "bg-white border-slate-200 text-slate-800"}`}
                   />
-                  <button type="submit" className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold transition-colors shrink-0">
-                    {emailStatus === "ok" ? "Joined ✓" : "Join"}
+                  <button
+                    type="submit"
+                    disabled={emailStatus === "loading"}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-slate-900 text-xs font-bold transition-colors shrink-0"
+                  >
+                    {emailStatus === "ok" ? "Joined ✓" : emailStatus === "loading" ? "Joining…" : "Join"}
                   </button>
                 </form>
               </div>

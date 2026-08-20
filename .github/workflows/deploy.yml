@@ -34,6 +34,11 @@ jobs:
         run: npm run build
         env:
           STATIC_EXPORT: "true"
+          # Optional newsletter wiring (set any one in repo Secrets → Actions):
+          # FORMSPREE_ID, NEWSLETTER_EMAIL (FormSubmit), or BUTTONDOWN_USER
+          NEXT_PUBLIC_FORMSPREE_ID: ${{ secrets.FORMSPREE_ID }}
+          NEXT_PUBLIC_NEWSLETTER_EMAIL: ${{ secrets.NEWSLETTER_EMAIL }}
+          NEXT_PUBLIC_BUTTONDOWN_USER: ${{ secrets.BUTTONDOWN_USER }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

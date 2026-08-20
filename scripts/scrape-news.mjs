@@ -170,15 +170,15 @@ const RSS_FEEDS = [
   { url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6511",  name: "CNA Singapore",       region: "singapore" },
   { url: "https://mothership.sg/feed/",                                                          name: "Mothership SG",        region: "singapore" },
   { url: "https://www.straitstimes.com/news/singapore/rss.xml",                                  name: "Straits Times SG",     region: "singapore" },
+  { url: "https://theindependent.sg/feed/",                                                      name: "The Independent SG",   region: "singapore" },
+  { url: "https://www.todayonline.com/feed",                                                     name: "TODAY Online",         region: "singapore" },
+  // CNA Lifestyle / human-interest leaning feed (when available)
+  { url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6514",  name: "CNA Lifestyle",        region: "singapore" },
 
   // ── Malaysia ───────────────────────────────────────────────────
   { url: "https://www.freemalaysiatoday.com/feed/",                                              name: "Free Malaysia Today",  region: "asia" },
-  // NOTE: "The Star Malaysia" removed — the guessed URL 404'd and I don't have
-  // a network-verified working RSS URL for them. Free Malaysia Today still
-  // covers Malaysia.
 
   // ── Indonesia ──────────────────────────────────────────────────
-  { url: "https://jakartaglobe.id/feed/",                                                         name: "Jakarta Globe",        region: "asia" }, // NOTE: unverified — original URL 404'd, this is a best-guess retry
   { url: "https://en.antaranews.com/rss/",                                                        name: "Antara News",          region: "asia" },
 
   // ── Philippines ────────────────────────────────────────────────
@@ -206,7 +206,6 @@ const RSS_FEEDS = [
   { url: "https://reasonstobecheerful.world/feed/",                                               name: "Reasons to be Cheerful", region: "world",   isPositiveFeed: true },
   { url: "https://www.optimistdaily.com/feed/",                                                   name: "Optimist Daily",       region: "world",     isPositiveFeed: true },
   { url: "https://tanksgoodnews.com/feed/",                                                        name: "Tank's Good News",     region: "world",     isPositiveFeed: true },
-  { url: "https://www.dailygood.org/rss/dg/",                                                     name: "DailyGood",            region: "world",     isPositiveFeed: true },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
@@ -460,6 +459,14 @@ function scoreArticle(title, summary, isPositiveFeed = false) {
     "raid", "seize", "seized",
     "fiasco", "overkill", "pushback", "push back",
     "extradition", "deport",
+    // Markets / pure politics / dry sports results (not uplifting)
+    "selloff", "sell-off", "stocks fall", "stocks drop", "market slide",
+    "shares fall", "shares drop", "bear market", "recession fear",
+    "out of the championship", "despite beating", "knocked out",
+    "eliminated from", "crash out", "crashes out",
+    "coe price", "coe premiums", "election results", "polls show",
+    "war crime", "military strike", "airstrike", "drone attack",
+    "lawsuit", "sues ", " sued", "court case", "guilty verdict",
   ];
   for (const neg of extraNegative) {
     if (matchesWord(combined, neg)) return null;
@@ -480,11 +487,10 @@ function scoreArticle(title, summary, isPositiveFeed = false) {
     }
   }
 
-  // Dedicated positive-news sources (Good News Network, Positive News, etc.)
-  // are already editorially curated, so 1 keyword hit is enough confirmation.
-  // General news feeds (CNA, Mothership) need a stronger signal — require 2+
-  // matches, since a single generic word is too easy to false-positive on.
-  const threshold = isPositiveFeed ? 1 : 2;
+  // Dedicated positive-news sources are already curated — still require a
+  // real positive keyword so pure sports scores / soft pieces don't slip in.
+  // General news feeds (CNA, ST, Mothership) need a stronger signal (3+).
+  const threshold = isPositiveFeed ? 2 : 3;
   if (bestScore < threshold) return null;
 
   return { score: bestScore, category: bestCategory };
@@ -677,7 +683,8 @@ async function scrapeAllFeeds() {
         let llmModel = null;
 
         if (verdict) {
-          if (!verdict.approved || (verdict.score && verdict.score < 6)) {
+          // Stricter bar: only clearly uplifting stories (score ≥ 7)
+          if (!verdict.approved || (verdict.score && verdict.score < 7)) {
             console.log(`   ✗ LLM rejected: "${title.slice(0, 60)}…" (score=${verdict.score ?? "n/a"}, ${verdict.reason})`);
             continue;
           }
