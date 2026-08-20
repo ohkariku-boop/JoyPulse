@@ -35,11 +35,22 @@
 | The Better India | 🌏 Asia | thebetterindia.com |
 | Sunny Skyz | 🌍 World | sunnyskyz.com |
 
-### Positivity Filter — two-pass
-1. **Keyword pre-filter** (free, instant): 200+ positive keywords across 5 categories, 100+ negative patterns, word-boundary matching (not naive substring — avoids false positives like "ai" matching inside "said"). Requires 2+ matches for general news sources, 1+ for already-curated positive-news sources.
-2. **LLM sentiment verification** (optional but recommended): survivors of the keyword filter are sent to free OpenRouter models for a real contextual judgment. The model returns `approved` + a 1–10 positivity score + confidence + short reason. Stories scoring below 6 are rejected. Falls back gracefully to keyword-only results if no API key is set or models are unavailable.
-- **Location detection** maps article text to Singapore, Malaysia, Japan, India, etc. Singapore stories receive a small ranking boost to keep local relevance strong.
-- **Ranking**: LLM-verified + higher llmScore + slight Singapore boost + keyword score.
+### Positivity Filter — two-pass (strict)
+1. **Keyword pre-filter**: Requires **3+** positive keyword hits for general news sources, **2+** for curated positive-news sources. Expanded negatives for markets, dry sports scores, crime, disaster.
+2. **LLM verification**: Stories scoring **below 7** are rejected. Falls back to keyword-only if no API key is set.
+- **Homepage**: **Today's 3** (daily habit), Singapore Spotlight, Best of the Week — deduped across sections.
+- **Ranking**: LLM-verified + higher llmScore + Singapore/Asia boost + keyword score.
+
+### Newsletter (optional)
+Add **one** secret under Settings → Secrets → Actions, then redeploy:
+
+| Secret | Provider |
+|--------|----------|
+| `FORMSPREE_ID` | Formspree form id |
+| `NEWSLETTER_EMAIL` | Your inbox via FormSubmit |
+| `BUTTONDOWN_USER` | Buttondown username |
+
+Without a secret, signups still save in the visitor's browser so the UI works while you configure a provider.
 
 ---
 
