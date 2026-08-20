@@ -5,7 +5,7 @@ import {
   Sun, Heart, Sparkles, Cpu, Globe, Trophy, Music, Search,
   X, ArrowRight, Compass, Gift, ExternalLink, MapPin,
   Clock, Briefcase, Bookmark, BookmarkCheck, ChevronDown,
-  ChevronLeft, ChevronRight, Star, TrendingUp,
+  ChevronLeft, ChevronRight, Star, TrendingUp, Moon,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════ */
@@ -751,7 +751,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               aria-label="Toggle dark mode"
               title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
             >
-              {darkMode ? <Sun className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+              {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             <div className="text-[9px] text-slate-400 font-semibold flex items-center gap-1">
               <Clock className="h-3 w-3" />
