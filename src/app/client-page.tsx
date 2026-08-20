@@ -731,52 +731,84 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     return recent.length >= 3 ? recent : articles.slice(0, 30);
   }, [articles]);
 
-  const topStory = useMemo(() => {
-    const pool = todaysArticles.length > 0 ? todaysArticles : articles;
-    if (pool.length === 0) return null;
-    // Prefer stories with real images for the hero
-    const ranked = [...pool].sort((a, b) => {
-      const img = (x: FeedArticle) => (x.imageUrl ? 200 : 0);
-      const diff = combinedScore(b) + img(b) - (combinedScore(a) + img(a));
-      return diff !== 0 ? diff : new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
-    });
-    return ranked[0];
-  }, [todaysArticles, articles, combinedScore]);
-
   const titleKey = useCallback(
     (s: string) => s.toLowerCase().replace(/&amp;/g, "&").replace(/[^a-z0-9]+/g, " ").trim(),
     []
   );
 
-  /** Today's 3 — never repeats Top Story; prefer images + SG/Asia */
+  /**
+   * Top story: hard prefer real images; SG/Asia first.
+   * StoryImage still provides stock if no RSS image — but we try hard for real photos.
+   */
+  const topStory = useMemo(() => {
+    const pool = todaysArticles.length > 0 ? todaysArticles : articles;
+    if (pool.length === 0) return null;
+    const ranked = [...pool].sort((a, b) => {
+      const score = (x: FeedArticle) =>
+        combinedScore(x) +
+        (x.imageUrl ? 500 : 0) +
+        (x.region === "singapore" ? 150 : x.region === "asia" ? 80 : 0);
+      const diff = score(b) - score(a);
+      return diff !== 0 ? diff : new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
+    });
+    // Prefer any candidate with imageUrl; else best overall (stock will show)
+    return ranked.find((a) => a.imageUrl) || ranked[0];
+  }, [todaysArticles, articles, combinedScore]);
+
+  /**
+   * Today's 3:
+   * - Never repeats top story
+   * - Prefer real images (StoryImage always fills stock as fallback)
+   * - Guarantee 1 Singapore slot when SG stories exist
+   * - Fill remaining with Asia-first ranking
+   */
   const todaysThree = useMemo(() => {
-    const primary = todaysArticles.length > 0 ? todaysArticles : articles;
-    const fallback = articles;
+    const pools = [todaysArticles, articles].filter((p) => p.length > 0);
     const seen = new Set<string>();
     if (topStory) seen.add(titleKey(topStory.title));
 
     const rank = (x: FeedArticle) =>
       combinedScore(x) +
-      (x.imageUrl ? 100 : 0) +
-      (x.region === "singapore" ? 80 : x.region === "asia" ? 40 : 0);
+      (x.imageUrl ? 300 : 0) +
+      (x.region === "singapore" ? 100 : x.region === "asia" ? 50 : 0);
 
-    const pick = (pool: FeedArticle[]) =>
+    const eligible = (pool: FeedArticle[]) =>
       [...pool]
         .filter((a) => a.id !== topStory?.id)
-        .sort((a, b) => rank(b) - rank(a))
         .filter((a) => {
           const key = titleKey(a.title);
           if (!key || seen.has(key)) return false;
-          seen.add(key);
           return true;
-        });
+        })
+        .sort((a, b) => rank(b) - rank(a));
 
-    let result = pick(primary).slice(0, 3);
-    if (result.length < 3) {
-      const extra = pick(fallback).filter((a) => !result.some((r) => r.id === a.id));
-      result = [...result, ...extra].slice(0, 3);
+    const result: FeedArticle[] = [];
+    const take = (a: FeedArticle) => {
+      const key = titleKey(a.title);
+      if (seen.has(key) || result.some((r) => r.id === a.id)) return false;
+      seen.add(key);
+      result.push(a);
+      return true;
+    };
+
+    // 1) Singapore guarantee — prefer SG with image
+    for (const pool of pools) {
+      if (result.length >= 1) break;
+      const sg = eligible(pool).filter((a) => a.region === "singapore");
+      const sgImg = sg.find((a) => a.imageUrl) || sg[0];
+      if (sgImg) take(sgImg);
     }
-    return result;
+
+    // 2) Fill to 3 — prefer image + Asia
+    for (const pool of pools) {
+      for (const a of eligible(pool)) {
+        if (result.length >= 3) break;
+        take(a);
+      }
+      if (result.length >= 3) break;
+    }
+
+    return result.slice(0, 3);
   }, [todaysArticles, articles, topStory, combinedScore, titleKey]);
 
   /** Edition label from newest article date (Asia/Singapore friendly) */
@@ -1042,82 +1074,75 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         </div>
       </div>
 
-      {/* ── HERO: text left + top story right ──────────────────── */}
-      <section className={`border-b ${darkMode ? "bg-slate-950 border-slate-800" : "bg-gradient-to-b from-amber-50/80 via-white to-slate-50 border-slate-100"}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-center">
-            {/* Left — hero copy + joy meter */}
-            <div className="space-y-4 text-left">
-              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${darkMode ? "bg-amber-900/40 text-amber-200 border-amber-700/50" : "bg-amber-100 text-amber-800 border-amber-200/50"}`}>
-                <Sparkles className="h-3 w-3" />
-                {articles.length} Real Positive Stories • {new Set(articles.map((a) => a.source)).size} Sources
-              </div>
-              <h1 className={`text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-[1.15] ${darkMode ? "text-white" : "text-slate-900"}`}>
-                <span className="bg-gradient-to-r from-amber-500 to-rose-500 bg-clip-text text-transparent">Asia&rsquo;s</span> good news, in one place
-              </h1>
-              <p className={`text-xs sm:text-sm max-w-md ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                Singapore spotlight + the best from across Asia. Real positive stories, filtered for genuine uplift. Zero negativity.
-              </p>
+      {/* ── MAGAZINE LEAD: full-width top story ─────────────────── */}
+      <section className={`border-b ${darkMode ? "bg-slate-950 border-slate-800" : "bg-gradient-to-b from-amber-50/60 via-white to-slate-50 border-slate-100"}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8">
+          {/* Compact brand line */}
+          <div className="flex flex-wrap items-center gap-2 mb-4 md:mb-5">
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${darkMode ? "bg-amber-900/40 text-amber-200 border-amber-700/50" : "bg-amber-100 text-amber-800 border-amber-200/50"}`}>
+              <Sparkles className="h-3 w-3" />
+              {editionLabel}
+            </span>
+            <span className={`text-[11px] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+              Asia&rsquo;s good news · filtered for uplift
+            </span>
+            <span className={`hidden sm:inline text-[11px] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+              · {joyMeter.emoji} {joyMeter.label}
+            </span>
+          </div>
 
-              {/* Joy Meter — desktop; explained so it isn’t opaque */}
-              <div
-                className={`hidden sm:flex items-center gap-3 rounded-xl border shadow-sm px-4 py-2.5 max-w-sm ${darkMode ? "bg-slate-900 border-slate-700" : "bg-white border-slate-100"}`}
-                title="Based on today’s story mix and verified uplift scores"
-              >
-                <span className="text-lg leading-none">{joyMeter.emoji}</span>
-                <div className="flex-grow">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Today&rsquo;s Joy Meter</span>
-                    <span className="text-[11px] font-black text-amber-600">{joyMeter.label}</span>
-                  </div>
-                  <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? "bg-slate-700" : "bg-slate-100"}`}>
-                    <div className="h-full bg-gradient-to-r from-amber-400 to-rose-400 rounded-full transition-all duration-700" style={{ width: `${joyMeter.score}%` }} />
-                  </div>
-                  <p className="text-[9px] text-slate-400 mt-1">Based on today&rsquo;s mix of uplifting stories</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Right — Today's Top Story */}
-            {topStory && (
-              <button
-                onClick={() => setSelectedId(topStory.id)}
-                className={`group w-full text-left rounded-2xl border shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden ${darkMode ? "bg-slate-900 border-amber-800/40 hover:border-amber-600/50" : "bg-white border-amber-200"}`}
-              >
-                <div className={`relative h-44 sm:h-52 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
+          {topStory && (
+            <button
+              type="button"
+              onClick={() => setSelectedId(topStory.id)}
+              className={`group w-full text-left rounded-2xl border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-amber-400 ${
+                darkMode ? "bg-slate-900 border-amber-800/40" : "bg-white border-amber-200/80"
+              }`}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2">
+                {/* Image — magazine lead */}
+                <div className={`relative min-h-[220px] md:min-h-[320px] overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
                   <StoryImage
                     imageUrl={topStory.imageUrl}
                     category={topStory.category}
                     id={topStory.id}
                     title={topStory.title}
                     summary={topStory.summary}
-                    className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
                   />
-                  <span className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
-                    <Star className="h-2.5 w-2.5 fill-white" />Today&rsquo;s Top Story
+                  <span className="absolute top-3 left-3 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md flex items-center gap-1 shadow">
+                    <Star className="h-3 w-3 fill-white" />Today&rsquo;s lead
                   </span>
                 </div>
-                <div className="p-4 sm:p-5 flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                {/* Copy */}
+                <div className="p-5 sm:p-7 md:p-8 flex flex-col justify-center gap-3">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     <span>{topStory.region === "singapore" ? "Singapore" : topStory.region === "asia" ? "Asia" : "World"}</span>
                     <span className="text-slate-300">·</span>
-                    <span className={(CATEGORY_META[topStory.category] || CATEGORY_META.humanity).textColor}>{topStory.category}</span>
+                    <span className={(CATEGORY_META[topStory.category] || CATEGORY_META.humanity).textColor}>
+                      {(CATEGORY_META[topStory.category] || CATEGORY_META.humanity).label}
+                    </span>
                     <span className="text-slate-300">·</span>
                     <span>{topStory.source}</span>
+                    {topStory.llmVerified && (
+                      <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-bold normal-case tracking-normal">
+                        Verified uplift
+                      </span>
+                    )}
                   </div>
-                  <h2 className={`font-serif text-base sm:text-lg font-black leading-tight group-hover:text-amber-600 transition-colors line-clamp-2 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
+                  <h1 className={`font-serif text-2xl sm:text-3xl md:text-[2rem] font-black leading-[1.15] group-hover:text-amber-600 transition-colors ${darkMode ? "text-slate-50" : "text-slate-900"}`}>
                     {topStory.title}
-                  </h2>
-                  <p className={`text-xs leading-relaxed line-clamp-4 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  </h1>
+                  <p className={`text-sm sm:text-[15px] leading-relaxed line-clamp-4 ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
                     {topStory.summary}
                   </p>
-                  <span className="text-[11px] font-bold text-amber-600 flex items-center gap-1 mt-0.5">
-                    Read the story <ArrowRight className="h-3.5 w-3.5" />
+                  <span className="text-sm font-bold text-amber-600 flex items-center gap-1.5 mt-1">
+                    Read the story <ArrowRight className="h-4 w-4" />
                   </span>
                 </div>
-              </button>
-            )}
-          </div>
+              </div>
+            </button>
+          )}
         </div>
       </section>
 
@@ -1125,66 +1150,92 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="space-y-6">
 
-            {/* Today's 3 — the daily habit block */}
+            {/* Today's 3 — numbered list with thumbs (not equal cards) */}
             {todaysThree.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
-                    <Sun className="h-3.5 w-3.5 text-amber-500" />
-                    <h3 className={`text-[10px] font-black uppercase tracking-widest ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                    <Sun className="h-4 w-4 text-amber-500" />
+                    <h2 className={`text-xs font-black uppercase tracking-widest ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
                       Today&rsquo;s 3
-                    </h3>
+                    </h2>
                   </div>
-                  <span className={`text-[9px] font-semibold ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
-                    Start your day with these
+                  <span className={`text-[11px] font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                    Your morning brief
                   </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <ol className={`rounded-2xl border divide-y overflow-hidden ${darkMode ? "bg-slate-900 border-slate-700 divide-slate-800" : "bg-white border-slate-200 divide-slate-100"}`}>
                   {todaysThree.map((a, i) => (
-                    <button
-                      key={a.id}
-                      onClick={() => setSelectedId(a.id)}
-                      className={`group text-left rounded-xl border overflow-hidden hover:shadow-md transition-all ${
-                        darkMode
-                          ? "bg-slate-900 border-slate-700 hover:border-amber-700/50"
-                          : "bg-white border-slate-200 hover:border-amber-300"
-                      }`}
-                    >
-                      <div className={`relative h-28 overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
-                        <StoryImage
-                          imageUrl={a.imageUrl}
-                          category={a.category}
-                          id={a.id}
-                          title={a.title}
-                          summary={a.summary}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <span className="absolute top-2 left-2 h-6 w-6 rounded-full bg-amber-500 text-white text-[11px] font-black flex items-center justify-center shadow">
+                    <li key={a.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(a.id)}
+                        className={`w-full flex gap-3 sm:gap-4 p-3 sm:p-3.5 text-left group hover:bg-amber-50/50 dark:hover:bg-slate-800/80 transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-400 ${darkMode ? "" : ""}`}
+                      >
+                        <span className="shrink-0 h-8 w-8 rounded-full bg-amber-500 text-white text-sm font-black flex items-center justify-center shadow-sm">
                           {i + 1}
                         </span>
-                      </div>
-                      <div className="p-3 space-y-1">
-                        <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400">
-                          {a.region === "singapore" ? "Singapore" : a.region === "asia" ? "Asia" : "World"}
-                          <span className="text-slate-300"> · </span>
-                          {a.category}
-                        </p>
-                        <p className={`font-serif text-[13px] font-bold leading-snug line-clamp-2 group-hover:text-amber-600 transition-colors ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
-                          {a.title}
-                        </p>
-                        <p className={`text-[10px] leading-relaxed line-clamp-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                          {a.summary}
-                        </p>
-                      </div>
-                    </button>
+                        <div className={`relative shrink-0 w-20 h-16 sm:w-28 sm:h-20 rounded-lg overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
+                          <StoryImage
+                            imageUrl={a.imageUrl}
+                            category={a.category}
+                            id={a.id}
+                            title={a.title}
+                            summary={a.summary}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1 flex flex-col justify-center gap-0.5">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            {a.region === "singapore" ? "Singapore" : a.region === "asia" ? "Asia" : "World"}
+                            <span className="text-slate-300"> · </span>
+                            <span className={(CATEGORY_META[a.category] || CATEGORY_META.humanity).textColor}>
+                              {(CATEGORY_META[a.category] || CATEGORY_META.humanity).label}
+                            </span>
+                          </p>
+                          <p className={`font-serif text-[14px] sm:text-[15px] font-bold leading-snug line-clamp-2 group-hover:text-amber-600 transition-colors ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
+                            {a.title}
+                          </p>
+                          <p className={`text-[12px] leading-relaxed line-clamp-1 sm:line-clamp-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                            {a.summary}
+                          </p>
+                        </div>
+                        <ArrowRight className="hidden sm:block h-4 w-4 text-slate-300 group-hover:text-amber-500 shrink-0 self-center transition" />
+                      </button>
+                    </li>
                   ))}
-                </div>
+                </ol>
               </div>
             )}
 
-            {/* Best of the Week — resurfaces the highest-confidence stories
-                from the last 7 days, separate from the reverse-chronological
-                main grid below. */}
+            {/* Newsletter — directly under Today's 3 for habit loop */}
+            <div className={`rounded-2xl border p-4 sm:p-5 ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gradient-to-br from-amber-50 to-rose-50 border-amber-100"}`}>
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                <div className="space-y-0.5 max-w-md">
+                  <h3 className={`text-sm font-black ${darkMode ? "text-white" : "text-slate-900"}`}>Get Today&rsquo;s 3 in your inbox</h3>
+                  <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-600"}`}>Short Asia good-news digest. No spam. Unsubscribe anytime.</p>
+                </div>
+                <form onSubmit={handleNewsletter} className="flex w-full sm:w-auto gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setEmailStatus("idle"); }}
+                    placeholder="you@email.com"
+                    aria-label="Email for newsletter"
+                    className={`flex-1 sm:w-52 px-3 py-2.5 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-amber-400 ${darkMode ? "bg-slate-800 border-slate-600 text-white placeholder-slate-500" : "bg-white border-slate-200 text-slate-800"}`}
+                  />
+                  <button
+                    type="submit"
+                    disabled={emailStatus === "loading"}
+                    className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-slate-900 text-sm font-bold transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  >
+                    {emailStatus === "ok" ? "Joined ✓" : emailStatus === "loading" ? "Joining…" : "Join"}
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* Best of the Week */}
             {bestOfWeek.length > 0 && (
               <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5">
@@ -1236,43 +1287,19 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               </div>
             )}
 
-            {/* Newsletter + Supporter CTA */}
-            <div className={`rounded-2xl border p-5 sm:p-6 ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gradient-to-br from-amber-50 to-rose-50 border-amber-100"}`}>
-              <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center justify-between">
-                <div className="space-y-1 max-w-md">
-                  <h3 className={`text-sm font-black ${darkMode ? "text-white" : "text-slate-900"}`}>Get the Asia Good News Digest</h3>
-                  <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-600"}`}>A short, uplifting email a few times a week. No spam. Unsubscribe anytime.</p>
-                </div>
-                <form onSubmit={handleNewsletter} className="flex w-full sm:w-auto gap-2">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); setEmailStatus("idle"); }}
-                    placeholder="you@email.com"
-                    className={`flex-1 sm:w-48 px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-amber-400 ${darkMode ? "bg-slate-800 border-slate-600 text-white placeholder-slate-500" : "bg-white border-slate-200 text-slate-800"}`}
-                  />
-                  <button
-                    type="submit"
-                    disabled={emailStatus === "loading"}
-                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-slate-900 text-xs font-bold transition-colors shrink-0"
-                  >
-                    {emailStatus === "ok" ? "Joined ✓" : emailStatus === "loading" ? "Joining…" : "Join"}
-                  </button>
-                </form>
-              </div>
-              <div className={`mt-4 pt-4 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${darkMode ? "border-slate-700" : "border-amber-100"}`}>
-                <p className={`text-[11px] ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
-                  Love JoyPulse? Become a <strong>Supporter</strong> to keep the filters sharp and the project independent.
-                </p>
-                <a
-                  href="https://ko-fi.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-[11px] font-bold transition-colors"
-                >
-                  <Heart className="h-3 w-3" /> Support JoyPulse
-                </a>
-              </div>
+            {/* Supporter CTA (newsletter lives under Today's 3) */}
+            <div className={`rounded-xl border px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${darkMode ? "bg-slate-900/80 border-slate-700" : "bg-white border-slate-200"}`}>
+              <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                Love JoyPulse? Become a <strong>Supporter</strong> to keep the filters sharp and the project independent.
+              </p>
+              <a
+                href="https://ko-fi.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-[11px] font-bold transition-colors shrink-0"
+              >
+                <Heart className="h-3 w-3" /> Support JoyPulse
+              </a>
             </div>
 
             {/* Count */}
