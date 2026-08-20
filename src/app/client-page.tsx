@@ -596,11 +596,23 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     return llmBoost + sgBoost + a.score;
   }, []);
 
+  /**
+   * Recent pool for "today" sections.
+   * Uses a rolling 48h window from the newest article (UTC ms), NOT calendar
+   * day strings — those break across timezones (build=UTC, readers=SGT) and
+   * can leave only 1–2 stories or an empty section after hydration.
+   */
   const todaysArticles = useMemo(() => {
     if (articles.length === 0) return [];
-    const latestDay = new Date(articles[0].pubDate).toDateString();
-    const sameDay = articles.filter((a) => new Date(a.pubDate).toDateString() === latestDay);
-    return sameDay.length > 0 ? sameDay : articles.slice(0, 20);
+    const newest = new Date(articles[0].pubDate).getTime();
+    if (!Number.isFinite(newest)) return articles.slice(0, 30);
+    const windowStart = newest - 48 * 3600 * 1000;
+    const recent = articles.filter((a) => {
+      const t = new Date(a.pubDate).getTime();
+      return Number.isFinite(t) && t >= windowStart;
+    });
+    // Always keep enough candidates for Today's 3 + top story
+    return recent.length >= 3 ? recent : articles.slice(0, 30);
   }, [articles]);
 
   const topStory = useMemo(() => {
@@ -617,24 +629,32 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     []
   );
 
-  /** Today's 3 — the daily habit block: top uplifting stories for the latest day */
+  /** Today's 3 — always try to show exactly 3 unique stories */
   const todaysThree = useMemo(() => {
-    const pool = todaysArticles.length > 0 ? todaysArticles : articles.slice(0, 40);
+    const primary = todaysArticles.length > 0 ? todaysArticles : articles;
+    const fallback = articles;
     const seen = new Set<string>();
-    return [...pool]
-      .sort((a, b) => {
-        // Prefer Singapore / Asia, then combined score
-        const regionBoost = (x: FeedArticle) =>
-          x.region === "singapore" ? 80 : x.region === "asia" ? 40 : 0;
-        return combinedScore(b) + regionBoost(b) - (combinedScore(a) + regionBoost(a));
-      })
-      .filter((a) => {
-        const key = titleKey(a.title);
-        if (!key || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 3);
+    const regionBoost = (x: FeedArticle) =>
+      x.region === "singapore" ? 80 : x.region === "asia" ? 40 : 0;
+    const rank = (x: FeedArticle) => combinedScore(x) + regionBoost(x);
+
+    const pick = (pool: FeedArticle[]) =>
+      [...pool]
+        .sort((a, b) => rank(b) - rank(a))
+        .filter((a) => {
+          const key = titleKey(a.title);
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+    let result = pick(primary).slice(0, 3);
+    if (result.length < 3) {
+      // Pad from the full feed so the section never looks half-empty
+      const extra = pick(fallback).filter((a) => !result.some((r) => r.id === a.id));
+      result = [...result, ...extra].slice(0, 3);
+    }
+    return result;
   }, [todaysArticles, articles, combinedScore, titleKey]);
 
   const bestOfWeek = useMemo(() => {
