@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 
 const SUPPORT_EMAIL = "joypulse.support@proton.me";
+/** Public asset prefix for GitHub Pages project sites (e.g. /JoyPulse) */
+const ASSET = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 /* Brand logos for share buttons (inline SVG — no external icon CDN) */
 function IconWhatsApp({ className = "h-4 w-4" }: { className?: string }) {
@@ -913,7 +915,13 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       <header className={`sticky top-0 backdrop-blur-md border-b z-20 ${darkMode ? "bg-slate-900/90 border-slate-800" : "bg-white/90 border-slate-100"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-14">
           <div className="flex items-center gap-2">
-            <div className="bg-amber-400 p-1.5 rounded-xl text-slate-900 shadow-sm"><Sun className="h-5 w-5 stroke-[2.5]" /></div>
+            <img
+              src={`${ASSET}/icon-192.png`}
+              alt="JoyPulse"
+              width={36}
+              height={36}
+              className="h-9 w-9 rounded-xl shadow-sm"
+            />
             <div>
               <span className={`text-base sm:text-lg font-black tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}>JoyPulse<span className="text-amber-500">.</span></span>
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest -mt-0.5">Asia • Good News Only</p>
@@ -1539,7 +1547,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       <footer className="bg-slate-900 text-white mt-12 border-t border-slate-800 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
           <div className="flex items-center justify-center gap-2">
-            <div className="bg-amber-400 p-1 rounded-lg text-slate-950"><Sun className="h-4 w-4" /></div>
+            <img src={`${ASSET}/icon-192.png`} alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
             <span className="text-sm font-black">JoyPulse<span className="text-amber-400">.</span></span>
           </div>
           <p className="text-[11px] text-slate-400 max-w-md mx-auto">

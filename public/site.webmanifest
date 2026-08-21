@@ -1,23 +1,16 @@
 {
-  "name": "JoyPulse – Asia's Good News",
+  "name": "JoyPulse",
   "short_name": "JoyPulse",
-  "description": "A daily digest of real, positive stories from across Asia.",
+  "description": "Asia's good news, in one place",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#fffbeb",
+  "background_color": "#FFAA00",
   "theme_color": "#FBBF24",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "favicon-16x16.png", "sizes": "16x16", "type": "image/png" },
+    { "src": "favicon-32x32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
   ]
 }

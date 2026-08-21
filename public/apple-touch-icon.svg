@@ -1,14 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="JoyPulse">
-  <rect width="180" height="180" rx="40" fill="#FBBF24"/>
-  <circle cx="90" cy="90" r="34" fill="#0F172A"/>
-  <g stroke="#0F172A" stroke-width="12" stroke-linecap="round">
-    <line x1="90" y1="18" x2="90" y2="38"/>
-    <line x1="90" y1="142" x2="90" y2="162"/>
-    <line x1="18" y1="90" x2="38" y2="90"/>
-    <line x1="142" y1="90" x2="162" y2="90"/>
-    <line x1="36" y1="36" x2="50" y2="50"/>
-    <line x1="130" y1="130" x2="144" y2="144"/>
-    <line x1="130" y1="36" x2="144" y2="50"/>
-    <line x1="36" y1="130" x2="50" y2="144"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="JoyPulse">
+  <defs>
+    <linearGradient id="disc" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFCC33"/>
+      <stop offset="100%" stop-color="#FF9900"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" ry="228" fill="#FFAA00"/>
+  <g fill="#FFFCF0">
+    <ellipse cx="512" cy="220" rx="42" ry="78"/>
+    <ellipse cx="512" cy="804" rx="42" ry="78"/>
+    <ellipse cx="220" cy="512" rx="78" ry="42"/>
+    <ellipse cx="804" cy="512" rx="78" ry="42"/>
+    <ellipse cx="305" cy="305" rx="42" ry="78" transform="rotate(-45 305 305)"/>
+    <ellipse cx="719" cy="719" rx="42" ry="78" transform="rotate(-45 719 719)"/>
+    <ellipse cx="719" cy="305" rx="42" ry="78" transform="rotate(45 719 305)"/>
+    <ellipse cx="305" cy="719" rx="42" ry="78" transform="rotate(45 305 719)"/>
   </g>
+  <circle cx="512" cy="512" r="205" fill="url(#disc)"/>
+  <text x="512" y="545" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-weight="700" font-size="168" fill="#FFFFFF">Joy</text>
 </svg>

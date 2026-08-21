@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+const ASSET = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export default function LegalShell({
   title,
   children,
@@ -12,7 +14,8 @@ export default function LegalShell({
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="font-black text-lg tracking-tight text-slate-900 hover:text-amber-600">
+          <Link href="/" className="inline-flex items-center gap-2 font-black text-lg tracking-tight text-slate-900 hover:text-amber-600">
+            <img src={`${ASSET}/icon-192.png`} alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
             JoyPulse<span className="text-amber-500">.</span>
           </Link>
           <Link href="/" className="text-sm font-semibold text-slate-500 hover:text-amber-600">
