@@ -819,7 +819,11 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
    * - Fill remaining with Asia-first ranking
    */
   const todaysThree = useMemo(() => {
-    const pools = [todaysArticles, articles].filter((p) => p.length > 0);
+    const prefer = (pool: FeedArticle[]) => {
+      const trusted = pool.filter(isTrustedArticle);
+      return trusted.length > 0 ? trusted : pool;
+    };
+    const pools = [prefer(todaysArticles), prefer(articles)].filter((p) => p.length > 0);
     const seen = new Set<string>();
     if (topStory) seen.add(titleKey(topStory.title));
 
