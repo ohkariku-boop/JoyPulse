@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
-  Sun, Heart, Sparkles, Cpu, Globe, Trophy, Music, Search,
+  Sun, Heart, Cpu, Globe, Trophy, Music, Search,
   X, ArrowRight, Compass, Gift, ExternalLink, MapPin,
   Clock, Briefcase, Bookmark, BookmarkCheck, ChevronDown,
   ChevronLeft, ChevronRight, Star, TrendingUp, Moon, Link2,
