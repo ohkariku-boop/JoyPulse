@@ -1211,30 +1211,68 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               </div>
             )}
 
-            {/* Newsletter — directly under Today's 3 for habit loop */}
-            <div className={`rounded-2xl border p-4 sm:p-5 ${darkMode ? "bg-slate-900 border-slate-700" : "bg-gradient-to-br from-amber-50 to-rose-50 border-amber-100"}`}>
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                <div className="space-y-0.5 max-w-md">
-                  <h3 className={`text-sm font-black ${darkMode ? "text-white" : "text-slate-900"}`}>Get Today&rsquo;s 3 in your inbox</h3>
-                  <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-600"}`}>Short Asia good-news digest. No spam. Unsubscribe anytime.</p>
+            {/* Newsletter + Support — high on page so they’re not lost in the feed */}
+            <div
+              id="join-support"
+              className={`rounded-2xl border p-5 sm:p-6 shadow-sm ${
+                darkMode
+                  ? "bg-slate-900 border-amber-800/40"
+                  : "bg-gradient-to-br from-amber-50 via-white to-rose-50 border-amber-200"
+              }`}
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 lg:gap-6 items-stretch">
+                {/* Newsletter */}
+                <div className="lg:col-span-3 space-y-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1">Stay in the loop</p>
+                    <h3 className={`text-base sm:text-lg font-black ${darkMode ? "text-white" : "text-slate-900"}`}>
+                      Get Today&rsquo;s 3 in your inbox
+                    </h3>
+                    <p className={`text-sm mt-1 ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                      Short Asia good-news digest a few times a week. No spam. Unsubscribe anytime.
+                    </p>
+                  </div>
+                  <form onSubmit={handleNewsletter} className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setEmailStatus("idle"); }}
+                      placeholder="you@email.com"
+                      aria-label="Email for newsletter"
+                      className={`flex-1 px-3 py-2.5 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-amber-400 ${darkMode ? "bg-slate-800 border-slate-600 text-white placeholder-slate-500" : "bg-white border-slate-200 text-slate-800"}`}
+                    />
+                    <button
+                      type="submit"
+                      disabled={emailStatus === "loading"}
+                      className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-slate-900 text-sm font-bold transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    >
+                      {emailStatus === "ok" ? "Joined ✓" : emailStatus === "loading" ? "Joining…" : "Subscribe"}
+                    </button>
+                  </form>
                 </div>
-                <form onSubmit={handleNewsletter} className="flex w-full sm:w-auto gap-2">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); setEmailStatus("idle"); }}
-                    placeholder="you@email.com"
-                    aria-label="Email for newsletter"
-                    className={`flex-1 sm:w-52 px-3 py-2.5 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-amber-400 ${darkMode ? "bg-slate-800 border-slate-600 text-white placeholder-slate-500" : "bg-white border-slate-200 text-slate-800"}`}
-                  />
-                  <button
-                    type="submit"
-                    disabled={emailStatus === "loading"}
-                    className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-slate-900 text-sm font-bold transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-400"
+
+                {/* Support */}
+                <div
+                  className={`lg:col-span-2 flex flex-col justify-center gap-3 rounded-xl border p-4 ${
+                    darkMode ? "bg-slate-950/50 border-slate-700" : "bg-white/80 border-rose-100"
+                  }`}
+                >
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-1">Keep it independent</p>
+                    <h3 className={`text-sm font-black ${darkMode ? "text-white" : "text-slate-900"}`}>Support JoyPulse</h3>
+                    <p className={`text-xs mt-1 ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                      Fuel the filters and keep Asia&rsquo;s good news free for everyone.
+                    </p>
+                  </div>
+                  <a
+                    href="https://ko-fi.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-rose-400"
                   >
-                    {emailStatus === "ok" ? "Joined ✓" : emailStatus === "loading" ? "Joining…" : "Join"}
-                  </button>
-                </form>
+                    <Heart className="h-4 w-4" /> Support on Ko-fi
+                  </a>
+                </div>
               </div>
             </div>
 
@@ -1289,21 +1327,6 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                 </StoryRail>
               </div>
             )}
-
-            {/* Supporter CTA (newsletter lives under Today's 3) */}
-            <div className={`rounded-xl border px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${darkMode ? "bg-slate-900/80 border-slate-700" : "bg-white border-slate-200"}`}>
-              <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
-                Love JoyPulse? Become a <strong>Supporter</strong> to keep the filters sharp and the project independent.
-              </p>
-              <a
-                href="https://ko-fi.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-[11px] font-bold transition-colors shrink-0"
-              >
-                <Heart className="h-3 w-3" /> Support JoyPulse
-              </a>
-            </div>
 
             {/* Count */}
             <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
