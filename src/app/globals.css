@@ -82,3 +82,36 @@ html {
     animation: none !important;
   }
 }
+
+/* Clickable affordance: pointer on anything interactive */
+a[href],
+button:not(:disabled),
+[role="button"],
+[role="link"],
+[role="tab"],
+[role="menuitem"],
+summary,
+label[for],
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+input[type="checkbox"],
+input[type="radio"],
+select,
+.cursor-pointer {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* Text fields stay text cursor */
+input[type="text"],
+input[type="email"],
+input[type="search"],
+input[type="url"],
+textarea {
+  cursor: text;
+}
