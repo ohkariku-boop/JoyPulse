@@ -1,6 +1,6 @@
 {
-  "lastUpdated": "2026-08-20T23:17:43.760Z",
-  "count": 324,
+  "lastUpdated": "2026-08-21T02:11:20.207Z",
+  "count": 331,
   "articles": [
     {
       "id": "c91578f3f1f9",
@@ -103,6 +103,23 @@
       "location": "India",
       "imageUrl": "https://img-cdn.publive.online/fit-in/1280x960/english-betterindia/media/youtube_thumbnails/vi/7YF8LuZdM5A/maxresdefault.jpg",
       "pubDate": "2026-08-20T07:58:14.000Z"
+    },
+    {
+      "id": "121701d92a41",
+      "title": "The search for nuclear fuel expands, from uranium mines to oceans to the moon",
+      "summary": "With uranium demand expected to double by 2040, countries are reopening mines, expanding enrichment capacity and exploring alternative fuels, seawater extraction and fusion technology, CNA’s The Nuclear Option finds.",
+      "source": "CNA Singapore",
+      "sourceUrl": "https://www.channelnewsasia.com/cna-insider/nuclear-power-revival-sparks-global-race-uranium-mines-fuel-6329336",
+      "category": "science",
+      "score": 3,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "singapore",
+      "location": "Singapore",
+      "imageUrl": null,
+      "pubDate": "2026-08-19T22:00:00.000Z"
     },
     {
       "id": "44669c306b12",
@@ -462,6 +479,23 @@
       "pubDate": "2026-08-19T00:00:28.000Z"
     },
     {
+      "id": "93e18a3f0ab0",
+      "title": "Introducing Ulez was my hardest decision as mayor of London – but now we know its astonishing impact | Sadiq Khan",
+      "summary": "Critics said I was attacking motorists. It’s more important for me that the city’s children are no longer breathing dangerous levels of pollution Ulez led to better lung size and function among London children, study finds When I introduced London’s clean air zone – the ultra-low emission zone (Ulez) – more than seven years ago, no city had ever attempted anything quite like it.",
+      "source": "Guardian Environment",
+      "sourceUrl": "https://www.theguardian.com/commentisfree/2026/aug/18/ulez-hardest-decision-mayor-london-impact-sadiq-khan",
+      "category": "nature",
+      "score": 3,
+      "llmVerified": true,
+      "llmScore": 8,
+      "llmReason": "Positive environmental policy improving children's health.",
+      "llmModel": "openai/gpt-oss-20b:free",
+      "region": "world",
+      "location": "World",
+      "imageUrl": null,
+      "pubDate": "2026-08-18T22:30:02.000Z"
+    },
+    {
       "id": "b1dc30ce261d",
       "title": "Harvard, MIT among 30 US universities ordered to audit China research ties",
       "summary": "Harvard University, the Massachusetts Institute of Technology and Johns Hopkins University are among 30 American institutions ordered to audit their foreign research relationships, according to…",
@@ -576,6 +610,23 @@
       "location": "China",
       "imageUrl": "https://cdn.i-scmp.com/sites/default/files/styles/1280x720/public/d8/images/canvas/2026/08/18/fe5d3e49-7b5b-4858-a1c2-5f58d72902f7_ac1fbe15.jpg?itok=yebJc8Sq&v=1787065252",
       "pubDate": "2026-08-18T14:00:05.000Z"
+    },
+    {
+      "id": "a8451acab3dd",
+      "title": "Scientists who turned to OnlyFans to fund marmot research receive crypto boost",
+      "summary": "Funding boost worth $100,000 has recently materialized in form of new marmot-themed cryptocurrency Scientists who turned to OnlyFans to help save long-running research into marmots have raised more than $100,000 after harnessing the support of another, very modern, funding avenue – cryptocurrency.",
+      "source": "Guardian Science",
+      "sourceUrl": "https://www.theguardian.com/us-news/2026/aug/18/scientists-onlyfans-marmots-crypto",
+      "category": "humanity",
+      "score": 3,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "world",
+      "location": "World",
+      "imageUrl": null,
+      "pubDate": "2026-08-18T13:00:46.000Z"
     },
     {
       "id": "74b32b58a391",
@@ -2485,6 +2536,23 @@
       "location": "Singapore",
       "imageUrl": null,
       "pubDate": "2026-08-11T10:05:00.000Z"
+    },
+    {
+      "id": "1aea2ba25678",
+      "title": "The return of the caspian tiger: how a species feared extinct has come back to Kazakhstan",
+      "summary": "The wild capture and release of a female big cat into a nature reserve is the first step towards reintroducing a population that hasn’t been seen for 70 years On 31 July, “Umit” – which means hope in Kazakh – was released into a nature reserve on the edge of Lake Balkhash after more than a decade of careful planning to return the caspian tiger to the region.",
+      "source": "Guardian World",
+      "sourceUrl": "https://www.theguardian.com/environment/2026/aug/11/extinction-caspian-tiger-release-female-kazakhstan-aoe",
+      "category": "nature",
+      "score": 3,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "world",
+      "location": "World",
+      "imageUrl": null,
+      "pubDate": "2026-08-11T10:00:56.000Z"
     },
     {
       "id": "2920a816f9fa",
@@ -5095,6 +5163,57 @@
       "location": "World",
       "imageUrl": null,
       "pubDate": "2026-07-13T17:25:00.000Z"
+    },
+    {
+      "id": "22887a4b64cd",
+      "title": "'World-first' vaccine designed by artificial intelligence",
+      "summary": "Cambridge scientists say they have, for the first time, tested a vaccine designed by AI.",
+      "source": "BBC Health",
+      "sourceUrl": "https://www.bbc.co.uk/news/articles/crrpggegwe0o?at_medium=RSS&at_campaign=rss",
+      "category": "science",
+      "score": 3,
+      "llmVerified": true,
+      "llmScore": 8,
+      "llmReason": "Breakthrough AI-designed vaccine represents a major scientific advancement with significant positive implications for human health and disease prevention.",
+      "llmModel": "openrouter/free",
+      "region": "world",
+      "location": "World",
+      "imageUrl": null,
+      "pubDate": "2026-06-04T23:29:06.000Z"
+    },
+    {
+      "id": "95443884b068",
+      "title": "Michael Jordan's 1998 NBA Finals sneakers sell for a record $2.2 million",
+      "summary": "In 1998, Michael Jordan laced up a pair of his iconic black and red Air Jordan 13s to bring home a Bulls victory during Game 2 of his final NBA championship — and now they are the most expensive sneakers ever to sell at auction.",
+      "source": "CNN World",
+      "sourceUrl": "https://www.cnn.com/style/article/michael-jordan-sneakers-1998-finals-sothebys-auction-record/index.html",
+      "category": "sports",
+      "score": 3,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "world",
+      "location": "World",
+      "imageUrl": null,
+      "pubDate": "2023-04-12T03:17:57.000Z"
+    },
+    {
+      "id": "6454a6d2b27e",
+      "title": "Teenage swimmer breaks two world records in four days",
+      "summary": "Sixteen-year-old Summer McIntosh broke the world record for the 400m individual medley at the Canadian swimming trials on Saturday -- just days after breaking the world record for the 400m freestyle.",
+      "source": "CNN Top",
+      "sourceUrl": "https://www.cnn.com/2023/04/03/sport/summer-mcintosh-world-record-canada-swimmer-spt-intl/index.html",
+      "category": "sports",
+      "score": 3,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "world",
+      "location": "World",
+      "imageUrl": null,
+      "pubDate": "2023-04-03T12:17:19.000Z"
     },
     {
       "id": "124efa7c57fd",
