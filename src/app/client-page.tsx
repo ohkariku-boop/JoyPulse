@@ -1082,8 +1082,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8">
           {/* Compact brand line */}
           <div className="flex flex-wrap items-center gap-2 mb-4 md:mb-5">
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${darkMode ? "bg-amber-900/40 text-amber-200 border-amber-700/50" : "bg-amber-100 text-amber-800 border-amber-200/50"}`}>
-              <Sparkles className="h-3 w-3" />
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${darkMode ? "bg-amber-900/40 text-amber-200 border-amber-700/50" : "bg-amber-100 text-amber-800 border-amber-200/50"}`}>
               {editionLabel}
             </span>
             <span className={`text-[11px] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
