@@ -879,10 +879,23 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     const emoji = score >= 85 ? "🌟" : score >= 65 ? "☀️" : score >= 40 ? "🌤️" : "🌱";
     return { score, label, emoji };
   }, [todaysArticles, articles]);
-  const availableCategories = useMemo(() => {
-    const cats = new Set(articles.map((a) => a.category));
-    return ["all", ...Object.keys(CATEGORY_META).filter((k) => k !== "all" && cats.has(k))];
-  }, [articles]);
+  const availableCategories = useMemo(
+    () => ["all", "humanity", "science", "nature", "sports", "arts", "business"],
+    []
+  );
+
+  const isFiltering =
+    selectedCategory !== "all" ||
+    selectedRegion !== "all" ||
+    searchQuery.trim().length > 0;
+
+  const selectCategory = useCallback((id: string) => {
+    setSelectedCategory(id);
+    setShowCount(12);
+    requestAnimationFrame(() => {
+      document.getElementById("story-grid")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   /* ═════════════════════════════════════════════════════════════ */
   /* RENDER                                                        */
@@ -989,7 +1002,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
                   <button
                     key={id}
                     type="button"
-                    onClick={() => { setSelectedCategory(id); setShowCount(12); }}
+                    onClick={() => selectCategory(id)}
                     aria-pressed={sel}
                     className={`shrink-0 py-3 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap border-b-2 transition focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-inset ${
                       sel
@@ -1032,7 +1045,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             {/* Region tabs — desktop */}
             <div className="hidden md:flex items-center gap-1 shrink-0">
               {REGION_TABS.map((r) => (
-                <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(12); }}
+                <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(12); requestAnimationFrame(() => document.getElementById("story-grid")?.scrollIntoView({ behavior: "smooth", block: "start" })); }}
                   className={`px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition ${
                     selectedRegion === r.id
                       ? "bg-slate-900 text-white"
@@ -1063,7 +1076,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
           {/* Mobile region tabs */}
           <div className="md:hidden flex items-center gap-1 overflow-x-auto no-scrollbar pb-2">
             {REGION_TABS.map((r) => (
-              <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(12); }}
+              <button key={r.id} onClick={() => { setSelectedRegion(r.id); setShowCount(12); requestAnimationFrame(() => document.getElementById("story-grid")?.scrollIntoView({ behavior: "smooth", block: "start" })); }}
                 className={`shrink-0 px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition ${
                   selectedRegion === r.id
                     ? "bg-slate-900 text-white"
@@ -1085,7 +1098,8 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
         </div>
       </div>
 
-      {/* ── MAGAZINE LEAD: full-width top story ─────────────────── */}
+      {/* ── MAGAZINE LEAD: full-width top story (hidden while filtering) ── */}
+      {!isFiltering && (
       <section className={`border-b ${darkMode ? "bg-slate-950 border-slate-800" : "bg-gradient-to-b from-amber-50/60 via-white to-slate-50 border-slate-100"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8">
           {/* Compact brand line */}
@@ -1155,13 +1169,14 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
           )}
         </div>
       </section>
+      )}
 
       {/* ── MAIN ───────────────────────────────────────────────── */}
       <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="space-y-6">
 
-            {/* Today's 3 — numbered list with thumbs (not equal cards) */}
-            {todaysThree.length > 0 && (
+            {/* Today's 3 — only on default (unfiltered) home */}
+            {!isFiltering && todaysThree.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
@@ -1284,7 +1299,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             </div>
 
             {/* Best of the Week */}
-            {bestOfWeek.length > 0 && (
+            {!isFiltering && bestOfWeek.length > 0 && (
               <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5">
                   <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
@@ -1309,8 +1324,8 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               </div>
             )}
 
-            {/* Singapore Spotlight — excludes top story + Best of the Week to avoid repeats */}
-            {singaporeSpotlight.length > 0 && selectedRegion === "all" && (
+            {/* Singapore Spotlight */}
+            {!isFiltering && singaporeSpotlight.length > 0 && (
               <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5 text-red-500" />
@@ -1335,10 +1350,26 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
               </div>
             )}
 
-            {/* Count */}
-            <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
-              <span><span className="font-black text-slate-800">{filtered.length}</span> stories match</span>
-              <span className="flex items-center gap-1"><Compass className="h-3 w-3" />Sources: BBC, CNN, Guardian, NYT, CNA, Good News Network & more</span>
+            {/* Filter status + count */}
+            <div id="story-grid" className="scroll-mt-28 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 font-semibold">
+              <span>
+                {isFiltering ? (
+                  <>
+                    <span className={`font-black ${darkMode ? "text-slate-100" : "text-slate-800"}`}>{filtered.length}</span>
+                    {" "}in{" "}
+                    <span className="text-amber-600">
+                      {selectedCategory !== "all" ? (CATEGORY_META[selectedCategory]?.label || selectedCategory) : "all categories"}
+                    </span>
+                    {selectedRegion !== "all" && <> · {selectedRegion}</>}
+                    {searchQuery.trim() && <> · “{searchQuery.trim()}”</>}
+                  </>
+                ) : (
+                  <>
+                    <span className={`font-black ${darkMode ? "text-slate-100" : "text-slate-800"}`}>{filtered.length}</span> stories match
+                  </>
+                )}
+              </span>
+              <span className="flex items-center gap-1"><Compass className="h-3 w-3" />Sources: BBC, CNN, Guardian, NYT, CNA & more</span>
             </div>
 
             {/* Saved articles — compact horizontal shelf */}
