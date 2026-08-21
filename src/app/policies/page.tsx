@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import LegalShell from "@/components/LegalShell";
 
 export const metadata: Metadata = {
-  title: "Policies – JoyPulse",
-  description: "Privacy and content policies for JoyPulse.",
+  title: "Policies – Privacy & Content",
+  description: "JoyPulse privacy and content policy. How we handle newsletter email, local storage, and privacy-friendly analytics. No ad trackers.",
 };
 
 export default function PoliciesPage() {

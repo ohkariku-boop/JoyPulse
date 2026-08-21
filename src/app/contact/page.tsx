@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import LegalShell from "@/components/LegalShell";
 
 export const metadata: Metadata = {
-  title: "Contact Us – JoyPulse",
-  description: "Contact JoyPulse support.",
+  title: "Contact Us",
+  description: "Contact JoyPulse support for feedback, takedown requests, or partnership ideas. Email joypulse.support@proton.me.",
 };
 
 export default function ContactPage() {

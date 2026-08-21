@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import LegalShell from "@/components/LegalShell";
 
 export const metadata: Metadata = {
-  title: "Terms of Use – JoyPulse",
-  description: "Terms of use for the JoyPulse website.",
+  title: "Terms of Use",
+  description: "Terms of use for JoyPulse, the Asia positive news reader. Free good-news website terms and acceptable use.",
 };
 
 export default function TermsPage() {
