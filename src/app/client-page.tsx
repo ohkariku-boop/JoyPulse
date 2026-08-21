@@ -1,12 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import {
   Sun, Heart, Sparkles, Cpu, Globe, Trophy, Music, Search,
   X, ArrowRight, Compass, Gift, ExternalLink, MapPin,
   Clock, Briefcase, Bookmark, BookmarkCheck, ChevronDown,
   ChevronLeft, ChevronRight, Star, TrendingUp, Moon, Link2,
 } from "lucide-react";
+
+const SUPPORT_EMAIL = "joypulse.support@proton.me";
 
 /* Brand logos for share buttons (inline SVG — no external icon CDN) */
 function IconWhatsApp({ className = "h-4 w-4" }: { className?: string }) {
@@ -1512,13 +1515,29 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
 
       {/* ── FOOTER ─────────────────────────────────────────────── */}
       <footer className="bg-slate-900 text-white mt-12 border-t border-slate-800 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-3">
-          <div className="flex items-center justify-center gap-2"><div className="bg-amber-400 p-1 rounded-lg text-slate-950"><Sun className="h-4 w-4" /></div><span className="text-sm font-black">JoyPulse<span className="text-amber-400">.</span></span></div>
-          <p className="text-[10px] text-slate-400 max-w-md mx-auto">Real positive news from across Asia — Singapore spotlight + regional highlights. Filtered for genuine uplift. Static, private, no tracking.</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
+          <div className="flex items-center justify-center gap-2">
+            <div className="bg-amber-400 p-1 rounded-lg text-slate-950"><Sun className="h-4 w-4" /></div>
+            <span className="text-sm font-black">JoyPulse<span className="text-amber-400">.</span></span>
+          </div>
+          <p className="text-[11px] text-slate-400 max-w-md mx-auto">
+            Real positive news from across Asia — Singapore spotlight + regional highlights. Filtered for genuine uplift. Static, private, no tracking.
+          </p>
+          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-semibold" aria-label="Footer">
+            <Link href="/policies" className="text-slate-300 hover:text-amber-400 transition">Policies</Link>
+            <span className="text-slate-600" aria-hidden="true">·</span>
+            <Link href="/terms" className="text-slate-300 hover:text-amber-400 transition">Terms</Link>
+            <span className="text-slate-600" aria-hidden="true">·</span>
+            <Link href="/contact" className="text-slate-300 hover:text-amber-400 transition">Contact Us</Link>
+            <span className="text-slate-600" aria-hidden="true">·</span>
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-amber-400 hover:text-amber-300 transition">
+              {SUPPORT_EMAIL}
+            </a>
+          </nav>
           <div className="text-[9px] text-slate-500 font-bold tracking-widest uppercase flex flex-wrap justify-center gap-3">
             <span>🌏 Best of Asia</span><span>🇸🇬 Singapore Spotlight</span><span>✨ Zero Negativity</span><span>📱 Mobile Friendly</span><span>🔒 No Tracking</span>
           </div>
-          <p className="text-[8px] text-slate-600">© {new Date().getFullYear()} JoyPulse • Static site • No server • No database • No cookies</p>
+          <p className="text-[10px] text-slate-600">© {new Date().getFullYear()} JoyPulse • Static site • No server • No database • No cookies</p>
         </div>
       </footer>
 
