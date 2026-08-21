@@ -12,7 +12,7 @@ const icon = (path: string) => `${basePath}${path}`;
 export const metadata: Metadata = {
   title: "JoyPulse – Asia's Good News, in One Place",
   description:
-    "A daily digest of real, positive stories from across Asia — Singapore first, then Malaysia, Indonesia, Thailand, Vietnam, the Philippines, India and beyond. Filtered for genuine uplift. No tracking, no negativity, just the good stuff.",
+    "A daily digest of real, positive stories from across Asia — Singapore first, then Malaysia, Indonesia, Thailand, Vietnam, the Philippines, India and beyond. Filtered for genuine uplift. No accounts, no ads — just the good stuff.",
   keywords: [
     "good news", "happy news", "positive news", "Asia good news",
     "Singapore good news", "uplifting stories Asia", "inspiring news",
