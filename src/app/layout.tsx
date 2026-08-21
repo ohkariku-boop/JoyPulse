@@ -60,7 +60,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="icon" href={`${basePath}/favicon.svg`} type="image/svg+xml" />
         <link rel="apple-touch-icon" href={`${basePath}/apple-touch-icon.png`} />
       </head>
-      <body className="bg-slate-50 text-slate-900 antialiased">{children}</body>
+      <body className="bg-slate-50 text-slate-900 antialiased">
+        {children}
+        {/* Privacy-friendly pageviews (GoatCounter) — no ads, no personal profiles */}
+        <script
+          data-goatcounter="https://joypulse.goatcounter.com/count"
+          async
+          src="https://gc.zgo.at/count.js"
+        />
+      </body>
     </html>
   );
 }

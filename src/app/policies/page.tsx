@@ -26,7 +26,11 @@ export default function PoliciesPage() {
           on this device. We cannot see them.
         </li>
         <li>
-          <strong>Analytics:</strong> We do not embed third-party ad or analytics trackers on the site.
+          <strong>Analytics:</strong> We use privacy-friendly pageview counts via{" "}
+          <a href="https://www.goatcounter.com/" className="text-amber-700 font-semibold hover:underline" target="_blank" rel="noopener noreferrer">
+            GoatCounter
+          </a>{" "}
+          (no advertising cookies, no personal profiles). We do not use Google Analytics or ad trackers.
         </li>
       </ul>
 
