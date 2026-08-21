@@ -1305,7 +1305,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
             {/* Count */}
             <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
               <span><span className="font-black text-slate-800">{filtered.length}</span> stories match</span>
-              <span className="flex items-center gap-1"><Compass className="h-3 w-3" />Sources: CNA, Good News Network, Positive News & more</span>
+              <span className="flex items-center gap-1"><Compass className="h-3 w-3" />Sources: BBC, CNN, Guardian, NYT, CNA, Good News Network & more</span>
             </div>
 
             {/* Saved articles — compact horizontal shelf */}

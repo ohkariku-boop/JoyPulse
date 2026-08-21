@@ -77,7 +77,8 @@ Respond with ONLY a JSON object, no other text:
 // the whole run. Once exceeded, remaining candidates fall back to keyword-only
 // results instead of queueing more LLM calls — keeps total runtime predictable
 // no matter how many articles pass the keyword filter.
-const LLM_TIME_BUDGET_MS = 12 * 60 * 1000; // 12 minutes, leaves headroom under the 20-min job timeout
+// More mainstream feeds → more keyword survivors needing LLM time.
+const LLM_TIME_BUDGET_MS = 15 * 60 * 1000; // 15 minutes, leaves headroom under typical job timeout
 let llmBudgetExhausted = false;
 let llmBudgetStart = null;
 
@@ -198,6 +199,28 @@ const RSS_FEEDS = [
   { url: "https://www.indiatoday.in/rss/1206578",                                                name: "India Today Positive", region: "asia" },
   // Hong Kong / East Asia
   { url: "https://www.scmp.com/rss/91/feed",                                                     name: "SCMP Asia",            region: "asia" },
+
+  // ── Global mainstream news (strict keyword + LLM — NOT isPositiveFeed)
+  // Mostly neutral/negative wire; only rare genuine uplift should survive (threshold 3+).
+  { url: "http://feeds.bbci.co.uk/news/world/rss.xml",                                           name: "BBC World",            region: "world" },
+  { url: "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml",                         name: "BBC Science",          region: "world" },
+  { url: "http://feeds.bbci.co.uk/news/health/rss.xml",                                          name: "BBC Health",           region: "world" },
+  { url: "http://feeds.bbci.co.uk/news/technology/rss.xml",                                      name: "BBC Technology",       region: "world" },
+  { url: "http://rss.cnn.com/rss/edition.rss",                                                   name: "CNN Top",              region: "world" },
+  { url: "http://rss.cnn.com/rss/edition_world.rss",                                             name: "CNN World",            region: "world" },
+  { url: "https://www.theguardian.com/world/rss",                                                name: "Guardian World",       region: "world" },
+  { url: "https://www.theguardian.com/environment/rss",                                          name: "Guardian Environment", region: "world" },
+  { url: "https://www.theguardian.com/science/rss",                                              name: "Guardian Science",     region: "world" },
+  { url: "https://www.theguardian.com/society/rss",                                              name: "Guardian Society",     region: "world" },
+  { url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",                               name: "NYT World",            region: "world" },
+  { url: "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml",                             name: "NYT Science",          region: "world" },
+  { url: "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml",                              name: "NYT Health",           region: "world" },
+  { url: "https://feeds.npr.org/1001/rss.xml",                                                   name: "NPR News",             region: "world" },
+  { url: "https://feeds.npr.org/1007/rss.xml",                                                   name: "NPR Science",          region: "world" },
+  { url: "https://www.aljazeera.com/xml/rss/all.xml",                                            name: "Al Jazeera",           region: "world" },
+  { url: "https://www.france24.com/en/rss",                                                      name: "France 24",            region: "world" },
+  { url: "https://www.euronews.com/rss",                                                         name: "Euronews",             region: "world" },
+  // Bloomberg/CNBC public RSS is often blocked or unstable — skipped for now
 
   // ── Dedicated positive-news sources (already curated — lower threshold) ─
   { url: "https://www.goodnewsnetwork.org/feed/",                                                name: "Good News Network",    region: "world",     isPositiveFeed: true },
