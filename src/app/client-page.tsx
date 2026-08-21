@@ -131,6 +131,24 @@ const REGION_TABS = [
   { id: "world",     label: "🌍 World"        },
 ];
 
+/** Dedicated good-news publishers — trusted without LLM */
+const POSITIVE_SOURCES = new Set([
+  "The Better India",
+  "Good News Network",
+  "Positive News",
+  "Good Good Good",
+  "Reasons to be Cheerful",
+  "Optimist Daily",
+  "Tank's Good News",
+]);
+
+/** Minimum trusted stories before we stop padding with keyword-only */
+const MIN_TRUSTED_HOME = 12;
+
+function isTrustedArticle(a: { llmVerified?: boolean; source: string }) {
+  return !!(a.llmVerified || POSITIVE_SOURCES.has(a.source));
+}
+
 const REACTION_TYPES = [
   { key: "happy",     emoji: "😄", label: "Happy"     },
   { key: "heart",     emoji: "❤️",  label: "Love It"   },
@@ -641,7 +659,7 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
   /* ── filtering & sorting ───────────────────────────────────── */
   const filtered = useMemo(() => {
     let list = articles;
-    // Client-side safety net: collapse near-duplicate titles (quotes/entities)
+    // Client-side safety net: collapse near-duplicate titles
     const seen = new Set<string>();
     list = list.filter((a) => {
       const key = a.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -655,10 +673,41 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       const q = searchQuery.toLowerCase();
       list = list.filter((a) => `${a.title} ${a.summary} ${a.location} ${a.source}`.toLowerCase().includes(q));
     }
+
+    const filtering =
+      selectedCategory !== "all" ||
+      selectedRegion !== "all" ||
+      searchQuery.trim().length > 0;
+
+    // Homepage default: LLM-verified + positive-news sources only.
+    // Pad with keyword-only only if trusted set is too small.
+    if (!filtering) {
+      const trusted = list.filter(isTrustedArticle);
+      if (trusted.length >= MIN_TRUSTED_HOME) {
+        list = trusted;
+      } else {
+        const trustedIds = new Set(trusted.map((a) => a.id));
+        const filler = list
+          .filter((a) => !trustedIds.has(a.id))
+          .sort((a, b) => {
+            const rb = (x: FeedArticle) =>
+              (x.region === "singapore" ? 100 : x.region === "asia" ? 50 : 0) + x.score;
+            return rb(b) - rb(a);
+          });
+        list = [...trusted, ...filler];
+      }
+    }
+
     if (sortBy === "popular") {
       list = [...list].sort((a, b) => b.score - a.score);
+    } else {
+      // Trusted first, then newer
+      list = [...list].sort((a, b) => {
+        const tb = (isTrustedArticle(b) ? 1 : 0) - (isTrustedArticle(a) ? 1 : 0);
+        if (tb !== 0) return tb;
+        return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
+      });
     }
-    // default is "new" — already sorted by pubDate from feed.json
     return list;
   }, [articles, selectedRegion, selectedCategory, searchQuery, sortBy]);
 
@@ -711,10 +760,11 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
   // Ranking: LLM-verified > Singapore > Asia > has image > keyword score
   const combinedScore = useCallback((a: FeedArticle) => {
     const llmBoost = a.llmVerified ? 1000 + (a.llmScore ?? 7) * 10 : 0;
+    const positiveBoost = POSITIVE_SOURCES.has(a.source) ? 400 : 0;
     const regionBoost =
       a.region === "singapore" ? 120 : a.region === "asia" ? 60 : 0;
     const imageBoost = a.imageUrl ? 40 : 0;
-    return llmBoost + regionBoost + imageBoost + a.score;
+    return llmBoost + positiveBoost + regionBoost + imageBoost + a.score;
   }, []);
 
   /**
@@ -746,8 +796,10 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
    * StoryImage still provides stock if no RSS image — but we try hard for real photos.
    */
   const topStory = useMemo(() => {
-    const pool = todaysArticles.length > 0 ? todaysArticles : articles;
-    if (pool.length === 0) return null;
+    const raw = todaysArticles.length > 0 ? todaysArticles : articles;
+    if (raw.length === 0) return null;
+    const trusted = raw.filter(isTrustedArticle);
+    const pool = trusted.length > 0 ? trusted : raw;
     const ranked = [...pool].sort((a, b) => {
       const score = (x: FeedArticle) =>
         combinedScore(x) +
@@ -756,7 +808,6 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
       const diff = score(b) - score(a);
       return diff !== 0 ? diff : new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
     });
-    // Prefer any candidate with imageUrl; else best overall (stock will show)
     return ranked.find((a) => a.imageUrl) || ranked[0];
   }, [todaysArticles, articles, combinedScore]);
 
