@@ -18,6 +18,8 @@ import { createHash } from "crypto";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_PATH = resolve(__dirname, "..", "public", "feed.json");
+const REJECT_LOG_PATH = resolve(__dirname, "..", "public", "reject-log.json");
+const REJECT_LOG_RETENTION_MS = 7 * 24 * 3600 * 1000; // 7 days
 
 // ═══════════════════════════════════════════════════════════════════
 // LLM CLASSIFICATION — second-pass sentiment check via OpenRouter
@@ -27,10 +29,11 @@ const OUTPUT_PATH = resolve(__dirname, "..", "public", "feed.json");
 // it can't understand context, tone, or nuance — it can be fooled by a
 // single word in an otherwise negative story.
 //
-// This step sends only the keyword-survivors to a free OpenRouter model
-// for a real judgment call. Only used once daily, so speed doesn't
-// matter — we try a short list of free models in order and fall
-// through to the next if one is unavailable or rate-limited that day.
+// Keyword survivors go to the LLM. Stories that hit a negative keyword
+// are NOT auto-killed — they are soft-blocked and sent to the LLM so
+// recovery arcs ("cancer survivor", "rebuilt after the flood") can still
+// pass if the story ends better than it started. Reject reasons are
+// logged for 7 days in public/reject-log.json for false-negative review.
 //
 // NOTE: OpenRouter's free-tier model lineup shifts over time. Review
 // this list periodically at https://openrouter.ai/models?max_price=0
@@ -52,6 +55,10 @@ const CANDIDATE_MODELS = [
 
 const CLASSIFY_SYSTEM_PROMPT = `You are a strict editorial filter for JoyPulse, an Asia-focused "good news only" publication.
 Given a headline and short summary, decide whether this is a GENUINELY uplifting, heartwarming, or positive story — not merely a story that happens to contain a positive-sounding word.
+
+RECOVERY ARCS ARE ALLOWED (approved: true when the arc is clear):
+- Stories that mention hardship (illness, disaster, loss) but end in recovery, rescue, rebuilding, survival, or community help — e.g. "cancer survivor", "rebuilt after the flood", "lost everything, then…".
+- The test is narrative arc: did the story end better than it started?
 
 STRICT REJECT criteria (approved: false):
 - Primarily about tragedy, disaster, crime, conflict, illness, death, or accidents — even if a small silver lining or recovery is mentioned
@@ -460,45 +467,41 @@ function matchesWord(text, phrase) {
 
 function scoreArticle(title, summary, isPositiveFeed = false) {
   const combined = `${title} ${summary}`.toLowerCase();
+  const blockReasons = [];
 
-  // Reject if any negative pattern matches
+  // Negative word hits → soft-block (LLM decides), not hard kill
   for (const neg of NEGATIVE_FILTER_PATTERNS) {
-    if (matchesWord(combined, neg)) return null;
+    if (matchesWord(combined, neg)) {
+      blockReasons.push(`neg:${neg}`);
+      if (blockReasons.length >= 8) break;
+    }
   }
 
-  // Also reject vague/short items
-  if (title.length < 20) return null;
-
-  // Additional negative context patterns (phrases, not just words)
+  // Phrase-level negatives
   const extraNegative = [
     "sex charge", "sex offence", "sentenced to", "faces charges",
-    "charged with", "accused of", "under investigation", "probe",
+    "charged with", "accused of", "under investigation",
     "crackdown", "controversial", "backlash", "fury", "outrage",
-    "fears", "worried", "concern", "troubl", "tension",
-    "surge in price", "price surge", "soar", "spike in cost",
-    "unrest", "instabil", "turmoil",
-    "typhoon", "hurricane", "cyclone", "storm",
-    "heatwave", "heat wave", "extreme heat",
-    "raid", "seize", "seized",
-    "fiasco", "overkill", "pushback", "push back",
-    "extradition", "deport",
-    // Markets / pure politics / dry sports results (not uplifting)
-    "selloff", "sell-off", "stocks fall", "stocks drop", "market slide",
-    "shares fall", "shares drop", "bear market", "recession fear",
-    "out of the championship", "despite beating", "knocked out",
-    "eliminated from", "crash out", "crashes out",
-    "coe price", "coe premiums", "election results", "polls show",
+    "surge in price", "price surge", "bear market", "recession fear",
+    "out of the championship", "knocked out", "eliminated from",
+    "crash out", "crashes out", "coe price", "coe premiums",
     "war crime", "military strike", "airstrike", "drone attack",
-    "lawsuit", "sues ", " sued", "court case", "guilty verdict",
+    "lawsuit", "guilty verdict", "death penalty",
   ];
   for (const neg of extraNegative) {
-    if (matchesWord(combined, neg)) return null;
+    if (combined.includes(neg)) {
+      blockReasons.push(`extra:${neg}`);
+      if (blockReasons.length >= 12) break;
+    }
   }
 
-  // Score each category
+  if (title.length < 20) {
+    return { hardReject: true, reasons: ["short_title"], score: 0, category: "humanity" };
+  }
+
+  // Score each category (positive keywords)
   let bestCategory = "humanity";
   let bestScore = 0;
-
   for (const [cat, patterns] of Object.entries(POSITIVE_PATTERNS)) {
     let score = 0;
     for (const pat of patterns) {
@@ -510,16 +513,32 @@ function scoreArticle(title, summary, isPositiveFeed = false) {
     }
   }
 
-  // Dedicated positive-news sources are already curated — still require a
-  // real positive keyword so pure sports scores / soft pieces don't slip in.
-  // General news feeds (CNA, ST, Mothership) need a stronger signal (3+).
   const threshold = isPositiveFeed ? 2 : 3;
-  if (bestScore < threshold) return null;
 
-  return { score: bestScore, category: bestCategory };
+  // Soft-block: has negative tokens — send to LLM (recovery arcs)
+  if (blockReasons.length > 0) {
+    return {
+      softBlock: true,
+      reasons: blockReasons.slice(0, 6),
+      score: Math.max(bestScore, 1),
+      category: bestCategory,
+    };
+  }
+
+  // Hard reject: no positive signal
+  if (bestScore < threshold) {
+    return {
+      hardReject: true,
+      reasons: [`low_score:${bestScore}`],
+      score: bestScore,
+      category: bestCategory,
+    };
+  }
+
+  return { score: bestScore, category: bestCategory, softBlock: false, hardReject: false, reasons: [] };
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
 // SUMMARY GENERATION — longer, readable write-ups (~400 chars)
 // so readers can understand the story before opening the full article.
 // ═══════════════════════════════════════════════════════════════════
@@ -643,6 +662,53 @@ async function fetchAndParseFeed(parser, url) {
 // ═══════════════════════════════════════════════════════════════════
 // MAIN SCRAPE LOGIC
 // ═══════════════════════════════════════════════════════════════════
+
+function appendRejectLog(newEntries) {
+  if (!newEntries.length) return;
+  let prev = [];
+  try {
+    if (existsSync(REJECT_LOG_PATH)) {
+      const parsed = JSON.parse(readFileSync(REJECT_LOG_PATH, "utf-8"));
+      prev = Array.isArray(parsed.entries) ? parsed.entries : [];
+    }
+  } catch { /* start fresh */ }
+  const cutoff = Date.now() - REJECT_LOG_RETENTION_MS;
+  const merged = [...newEntries, ...prev]
+    .filter((e) => e && e.ts && new Date(e.ts).getTime() >= cutoff)
+    .slice(0, 8000);
+
+  const byStage = {};
+  const byReason = {};
+  for (const e of merged) {
+    byStage[e.stage] = (byStage[e.stage] || 0) + 1;
+    for (const r of e.reasons || []) {
+      const key = String(r).split(":")[0];
+      byReason[key] = (byReason[key] || 0) + 1;
+    }
+  }
+  const topReasons = Object.entries(byReason)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 25)
+    .map(([reason, count]) => ({ reason, count }));
+
+  writeFileSync(
+    REJECT_LOG_PATH,
+    JSON.stringify(
+      {
+        lastUpdated: new Date().toISOString(),
+        retentionDays: 7,
+        entryCount: merged.length,
+        byStage,
+        topReasonPrefixes: topReasons,
+        entries: merged,
+      },
+      null,
+      2
+    )
+  );
+  console.log(`\n📋 Reject log: ${newEntries.length} new, ${merged.length} retained (7-day window) → public/reject-log.json`);
+}
+
 async function scrapeAllFeeds() {
   if (!OPENROUTER_API_KEY) {
     console.log("⚠ OPENROUTER_API_KEY not set — running keyword-filter only, no LLM sentiment check.\n");
@@ -656,6 +722,7 @@ async function scrapeAllFeeds() {
   const parser = new Parser();
 
   const allArticles = [];
+  const rejectLog = [];
   const seenKeys = new Set(); // normalized titles already kept
 
   // Load existing feed to merge & dedup
@@ -693,28 +760,79 @@ async function scrapeAllFeeds() {
         if (!summary || summary.length < 20) continue;
 
         const scoring = scoreArticle(title, summary, feed.isPositiveFeed === true);
-        if (!scoring) continue;
+        if (!scoring || scoring.hardReject) {
+          rejectLog.push({
+            ts: new Date().toISOString(),
+            title: title.slice(0, 160),
+            source: feed.name,
+            stage: "keyword_hard",
+            reasons: (scoring && scoring.reasons) || ["null_score"],
+          });
+          continue;
+        }
 
-        // Second-pass: ask an LLM to sanity-check the keyword filter's call.
-        // If no API key is set, or every candidate model is unavailable,
-        // fall back to trusting the keyword result rather than dropping
-        // the article entirely — degrade gracefully, don't fail the run.
-        const verdict = await classifyWithLLM(title, summary);
+        // Second-pass LLM. Soft-blocked items (negative keywords) MUST go
+        // through the LLM — recovery arcs should not die on a single token.
+        // Clean keyword survivors still get an LLM check when budget allows.
         let llmVerified = false;
         let llmScore = null;
         let llmReason = "";
         let llmModel = null;
 
-        if (verdict) {
-          // Stricter bar: only clearly uplifting stories (score ≥ 7)
-          if (!verdict.approved || (verdict.score && verdict.score < 7)) {
-            console.log(`   ✗ LLM rejected: "${title.slice(0, 60)}…" (score=${verdict.score ?? "n/a"}, ${verdict.reason})`);
+        const needsLlm = scoring.softBlock === true || !!OPENROUTER_API_KEY;
+        if (scoring.softBlock && !OPENROUTER_API_KEY) {
+          // Cannot rescue recovery arcs without a model — log and skip
+          rejectLog.push({
+            ts: new Date().toISOString(),
+            title: title.slice(0, 160),
+            source: feed.name,
+            stage: "soft_block_no_llm_key",
+            reasons: scoring.reasons || [],
+          });
+          continue;
+        }
+
+        if (needsLlm || scoring.softBlock) {
+          const verdict = await classifyWithLLM(title, summary);
+          if (verdict) {
+            if (!verdict.approved || (verdict.score && verdict.score < 7)) {
+              console.log(
+                `   ✗ LLM rejected${scoring.softBlock ? " (soft-block)" : ""}: "${title.slice(0, 55)}…" (score=${verdict.score ?? "n/a"}, ${verdict.reason})`
+              );
+              rejectLog.push({
+                ts: new Date().toISOString(),
+                title: title.slice(0, 160),
+                source: feed.name,
+                stage: scoring.softBlock ? "soft_block_llm_reject" : "llm_reject",
+                reasons: [
+                  ...(scoring.reasons || []),
+                  `llm_score:${verdict.score ?? "n/a"}`,
+                  `llm:${(verdict.reason || "").slice(0, 120)}`,
+                ],
+              });
+              continue;
+            }
+            llmVerified = true;
+            llmScore = verdict.score;
+            llmReason = verdict.reason;
+            llmModel = verdict.model;
+            if (scoring.softBlock) {
+              console.log(
+                `   ✓ LLM rescued soft-block: "${title.slice(0, 55)}…" (score=${verdict.score}, ${verdict.reason})`
+              );
+            }
+          } else if (scoring.softBlock) {
+            // Budget exhausted or all models failed — do not publish soft-blocks without LLM
+            rejectLog.push({
+              ts: new Date().toISOString(),
+              title: title.slice(0, 160),
+              source: feed.name,
+              stage: "soft_block_llm_unavailable",
+              reasons: scoring.reasons || [],
+            });
             continue;
           }
-          llmVerified = true;
-          llmScore = verdict.score;
-          llmReason = verdict.reason;
-          llmModel = verdict.model;
+          // Non-soft-block + no verdict: fall through and keep keyword-only article
         }
 
         // Detect location from title + summary text
@@ -777,6 +895,9 @@ async function scrapeAllFeeds() {
     .slice(0, 500);
 
   console.log(`🧹 Deduped to ${final.length} unique stories (from ${merged.length} raw)`);
+
+  // Persist reject reasons for 7 days (false-negative / soft-block analysis)
+  appendRejectLog(rejectLog);
 
   const output = {
     lastUpdated: new Date().toISOString(),
