@@ -149,27 +149,45 @@ function isTrustedArticle(a: { llmVerified?: boolean; source: string }) {
   return !!(a.llmVerified || POSITIVE_SOURCES.has(a.source));
 }
 
-/** Small Levenshtein for fuzzy search (client-side) */
-function editDistance(a: string, b: string): number {
+/**
+ * Optimal String Alignment (OSA) distance — restricted Damerau–Levenshtein.
+ * Edits: insert, delete, substitute, and adjacent transposition (cost 1 each).
+ * Better typo tolerance than plain Levenshtein for swaps like "teh"→"the".
+ */
+function osaDistance(a: string, b: string): number {
   if (a === b) return 0;
   if (!a.length) return b.length;
   if (!b.length) return a.length;
   if (Math.abs(a.length - b.length) > 2) return 99;
-  const row = new Array(b.length + 1);
-  for (let j = 0; j <= b.length; j++) row[j] = j;
-  for (let i = 0; i < a.length; i++) {
-    let prev = i + 1;
-    for (let j = 0; j < b.length; j++) {
-      const next = a[i] === b[j] ? row[j] : Math.min(row[j], row[j + 1], prev) + 1;
-      row[j] = prev;
-      prev = next;
+
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+      if (
+        i > 1 &&
+        j > 1 &&
+        a[i - 1] === b[j - 2] &&
+        a[i - 2] === b[j - 1]
+      ) {
+        dp[i][j] = Math.min(dp[i][j], dp[i - 2][j - 2] + 1);
+      }
     }
-    row[b.length] = prev;
   }
-  return row[b.length];
+  return dp[m][n];
 }
 
-/** Fuzzy filter: exact substring, or each query word within edit distance of a token */
+/** Fuzzy filter: exact substring, or each query word within OSA distance of a token */
 function fuzzyMatchText(haystack: string, query: string): boolean {
   const h = haystack.toLowerCase();
   const q = query.toLowerCase().trim();
@@ -183,7 +201,7 @@ function fuzzyMatchText(haystack: string, query: string): boolean {
     const maxDist = qw.length >= 8 ? 2 : 1;
     return hWords.some((hw) => {
       if (Math.abs(hw.length - qw.length) > maxDist) return false;
-      return editDistance(qw, hw) <= maxDist;
+      return osaDistance(qw, hw) <= maxDist;
     });
   });
 }
