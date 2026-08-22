@@ -149,6 +149,45 @@ function isTrustedArticle(a: { llmVerified?: boolean; source: string }) {
   return !!(a.llmVerified || POSITIVE_SOURCES.has(a.source));
 }
 
+/** Small Levenshtein for fuzzy search (client-side) */
+function editDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  if (Math.abs(a.length - b.length) > 2) return 99;
+  const row = new Array(b.length + 1);
+  for (let j = 0; j <= b.length; j++) row[j] = j;
+  for (let i = 0; i < a.length; i++) {
+    let prev = i + 1;
+    for (let j = 0; j < b.length; j++) {
+      const next = a[i] === b[j] ? row[j] : Math.min(row[j], row[j + 1], prev) + 1;
+      row[j] = prev;
+      prev = next;
+    }
+    row[b.length] = prev;
+  }
+  return row[b.length];
+}
+
+/** Fuzzy filter: exact substring, or each query word within edit distance of a token */
+function fuzzyMatchText(haystack: string, query: string): boolean {
+  const h = haystack.toLowerCase();
+  const q = query.toLowerCase().trim();
+  if (!q) return true;
+  if (h.includes(q)) return true;
+  const qWords = q.split(/\s+/).filter(Boolean);
+  const hWords = h.split(/[^a-z0-9]+/).filter((w) => w.length > 1);
+  return qWords.every((qw) => {
+    if (h.includes(qw)) return true;
+    if (qw.length < 4) return false;
+    const maxDist = qw.length >= 8 ? 2 : 1;
+    return hWords.some((hw) => {
+      if (Math.abs(hw.length - qw.length) > maxDist) return false;
+      return editDistance(qw, hw) <= maxDist;
+    });
+  });
+}
+
 const REACTION_TYPES = [
   { key: "happy",     emoji: "😄", label: "Happy"     },
   { key: "heart",     emoji: "❤️",  label: "Love It"   },
@@ -669,9 +708,11 @@ export default function ClientPage({ articles, lastUpdated }: ClientPageProps) {
     });
     if (selectedRegion !== "all") list = list.filter((a) => a.region === selectedRegion);
     if (selectedCategory !== "all") list = list.filter((a) => a.category === selectedCategory);
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter((a) => `${a.title} ${a.summary} ${a.location} ${a.source}`.toLowerCase().includes(q));
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim();
+      list = list.filter((a) =>
+        fuzzyMatchText(`${a.title} ${a.summary} ${a.location} ${a.source}`, q)
+      );
     }
 
     const filtering =

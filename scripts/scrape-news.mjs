@@ -450,19 +450,65 @@ function detectLocation(text) {
 // ═══════════════════════════════════════════════════════════════════
 // Cache compiled regexes so we don't rebuild them per-article
 const _wordBoundaryCache = new Map();
-function matchesWord(text, phrase) {
-  // Multi-word phrases (e.g. "pay it forward") match fine with simple includes.
-  // Single short tokens (e.g. "ai", "eco", "art") MUST use word boundaries,
-  // otherwise they false-positive inside unrelated words like "said", "daily",
-  // "economy", "quarter". \b works correctly for both cases since spaces are
-  // non-word characters too.
-  let re = _wordBoundaryCache.get(phrase);
-  if (!re) {
-    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    re = new RegExp(`\\b${escaped}\\b`, "i");
-    _wordBoundaryCache.set(phrase, re);
+const _tokenCache = new Map();
+
+function editDistance(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  if (Math.abs(a.length - b.length) > 2) return 99;
+  const row = new Array(b.length + 1);
+  for (let j = 0; j <= b.length; j++) row[j] = j;
+  for (let i = 0; i < a.length; i++) {
+    let prev = i + 1;
+    for (let j = 0; j < b.length; j++) {
+      const next = a[i] === b[j] ? row[j] : Math.min(row[j], row[j + 1], prev) + 1;
+      row[j] = prev;
+      prev = next;
+    }
+    row[b.length] = prev;
   }
-  return re.test(text);
+  return row[b.length];
+}
+
+function tokensOf(text) {
+  let cached = _tokenCache.get(text);
+  if (cached) return cached;
+  cached = text.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1);
+  // Cap cache size
+  if (_tokenCache.size > 4000) _tokenCache.clear();
+  _tokenCache.set(text, cached);
+  return cached;
+}
+
+function matchesWord(text, phrase) {
+  // Multi-word phrases: substring match
+  // Single short tokens: word-boundary only (avoid "art" in "quarter")
+  // Longer single tokens: also fuzzy match edit distance 1 (typos / mild variants)
+  const p = String(phrase).toLowerCase().trim();
+  if (!p) return false;
+
+  if (p.includes(" ")) {
+    return text.toLowerCase().includes(p);
+  }
+
+  let re = _wordBoundaryCache.get(p);
+  if (!re) {
+    const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    re = new RegExp(`\\b${escaped}\\b`, "i");
+    _wordBoundaryCache.set(p, re);
+  }
+  if (re.test(text)) return true;
+
+  // Fuzzy: only for tokens length >= 5, distance 1 (or 2 if length >= 9)
+  if (p.length < 5) return false;
+  const maxDist = p.length >= 9 ? 2 : 1;
+  const toks = tokensOf(text);
+  for (const tok of toks) {
+    if (Math.abs(tok.length - p.length) > maxDist) continue;
+    if (editDistance(p, tok) <= maxDist) return true;
+  }
+  return false;
 }
 
 function scoreArticle(title, summary, isPositiveFeed = false) {
