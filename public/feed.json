@@ -1,7 +1,24 @@
 {
-  "lastUpdated": "2026-10-02T16:11:22.962Z",
+  "lastUpdated": "2026-10-03T01:39:16.559Z",
   "count": 500,
   "articles": [
+    {
+      "id": "0d7309ea00bd",
+      "title": "Rangers saved this giraffe's life when she was just one week old. 5 years later, she surprised them with a heartwarming reunion",
+      "summary": "Just days after she was born, Twiggy was found hiding amongst a herd of zebras for protection.",
+      "source": "Good Good Good",
+      "sourceUrl": "https://www.goodgoodgood.co/articles/twiggy-baby-giraffe-rescue-wildlife-sanctuary",
+      "category": "humanity",
+      "score": 2,
+      "llmVerified": false,
+      "llmScore": null,
+      "llmReason": "",
+      "llmModel": null,
+      "region": "world",
+      "location": "World",
+      "imageUrl": null,
+      "pubDate": "2026-10-02T20:21:00.000Z"
+    },
     {
       "id": "0968e8050118",
       "title": "UK’s National Museums to Continue 25-Year Policy of Free Entry for Foreign Visitors",
@@ -188,6 +205,23 @@
       "location": "Malaysia",
       "imageUrl": "https://media.freemalaysiatoday.com/v3/2026/10/b8ffe39a-41af-45c5-b6e7-03ddc346f514-Ng-Eain-Yow-and-Ameeshenraj-Chandaran-tile-021026.jpg",
       "pubDate": "2026-10-02T10:02:00.000Z"
+    },
+    {
+      "id": "7d8b519696f5",
+      "title": "S'pore student, 22, spends 1,737 hours over 2 years on super-realistic drawing of S'pore skyline, says some parts already 'slightly outdated'",
+      "summary": "A Singaporean architecture student spent 1,737 hours hand-drawing a hyper-realistic recreation of Singapore's iconic skyline. Sim Heng Ee, 22, told Mothership that he did this over 21 months. Some days, he would even spend up to 15 hours drawing, though he clarified that this was the exception, not the norm. All those hours do not include the time spent on research and actually going down to visit the buildings.",
+      "source": "Mothership SG",
+      "sourceUrl": "https://mothership.sg/2026/10/realistic-drawing-architect-student/",
+      "category": "science",
+      "score": 2,
+      "llmVerified": true,
+      "llmScore": 8,
+      "llmReason": "Showcases a young student's remarkable dedication and artistic achievement, delivering a feel-good story of personal passion and skill.",
+      "llmModel": "openrouter/free",
+      "region": "singapore",
+      "location": "Singapore",
+      "imageUrl": "https://static.mothership.sg/1/2026/10/Untitled-design-47.png",
+      "pubDate": "2026-10-02T10:00:31.000Z"
     },
     {
       "id": "5c4085765ebe",
@@ -2825,6 +2859,23 @@
       "pubDate": "2026-09-27T03:41:48.000Z"
     },
     {
+      "id": "682ca22e3ceb",
+      "title": "How China's first lady Peng Liyuan turns US visits into fashion diplomacy",
+      "summary": "Peng Liyuan, wife of Chinese President Xi Jinping, has drawn praise for her fashion choices on her U.S. visits since 2015.",
+      "source": "VnExpress Int'l",
+      "sourceUrl": "https://e.vnexpress.net/photo/news/how-chinas-first-lady-peng-liyuan-turns-us-visits-into-fashion-diplomacy-5125223.html",
+      "category": "humanity",
+      "score": 1,
+      "llmVerified": true,
+      "llmScore": 7,
+      "llmReason": "Celebrates cultural diplomacy and positive international relations through fashion, highlighting a heartwarming soft power story.",
+      "llmModel": "openrouter/free",
+      "region": "asia",
+      "location": "China",
+      "imageUrl": "https://vcdn1-giaitri.vnecdn.net/2026/09/25/tap-can-binh-banh-le-vien-1790320797.jpg?w=900&h=0&q=100&dpr=1&fit=crop&s=11SNS-OjzoKwuT22j_ROTQ",
+      "pubDate": "2026-09-27T01:26:59.000Z"
+    },
+    {
       "id": "0a5dc08caaa9",
       "title": "Amid many thorny issues with China, Trump pushes to rename AI as superintelligence",
       "summary": "US President Donald Trump is pushing for a rebrand of artificial intelligence (AI) — and looking to get the world’s other AI superpower, China, on board. All US government documents, and “hopefully the world’s”, will use the term “superintelligence”, or SI, to refer to the fast-evolving technology, Trump said at the United Nations General Assembly on Tuesday.",
@@ -4098,6 +4149,23 @@
       "location": "World",
       "imageUrl": null,
       "pubDate": "2026-09-23T18:16:33.000Z"
+    },
+    {
+      "id": "851d23aa4df5",
+      "title": "Scientists are crowd-sourcing photos of wildlife eating lunch. It helps them protect endangered species",
+      "summary": "With a new platform called Who Eats Whom, citizen scientists reveal the fascinating, sometimes shocking interactions between species.",
+      "source": "Good Good Good",
+      "sourceUrl": "https://www.goodgoodgood.co/articles/who-eats-whom-wildlife-food-web-inaturalist",
+      "category": "nature",
+      "score": 3,
+      "llmVerified": true,
+      "llmScore": 8,
+      "llmReason": "A positive citizen science initiative that empowers people to help protect endangered species through engaging wildlife observation.",
+      "llmModel": "openrouter/free",
+      "region": "world",
+      "location": "World",
+      "imageUrl": null,
+      "pubDate": "2026-09-23T17:26:00.000Z"
     },
     {
       "id": "d95c9a1c0e5b",
@@ -8433,74 +8501,6 @@
       "location": "World",
       "imageUrl": null,
       "pubDate": "2026-09-14T00:00:51.000Z"
-    },
-    {
-      "id": "9e65d1f51fde",
-      "title": "China’s intelligence chief warns of risks from AI as ‘new arena for strategic rivalry’",
-      "summary": "China’s top intelligence official has warned of rising national security risks posed by artificial intelligence (AI), calling for robust risk prevention frameworks and stronger global governance of the emerging technology. The call from Chen Yixin, China’s state security minister, comes as Beijing seeks to play a leading role in global AI governance while criticising US restrictions.",
-      "source": "SCMP Asia",
-      "sourceUrl": "https://www.scmp.com/news/china/politics/article/3367349/chinas-intelligence-chief-warns-risks-ai-new-arena-strategic-rivalry?utm_source=rss_feed",
-      "category": "science",
-      "score": 3,
-      "llmVerified": false,
-      "llmScore": null,
-      "llmReason": "",
-      "llmModel": null,
-      "region": "asia",
-      "location": "China",
-      "imageUrl": "https://cdn.i-scmp.com/sites/default/files/styles/1280x720/public/d8/images/canvas/2026/09/14/525c33fd-d08f-48cc-bd59-2b1bbca437b8_cf937233.jpg?itok=F277-O75&v=1789344573",
-      "pubDate": "2026-09-14T00:00:10.000Z"
-    },
-    {
-      "id": "4ff77955e45b",
-      "title": "Trump dismisses calls for AI slowdown from leading tech CEOs",
-      "summary": "Trump downplays AI risks, saying he wants to maintain the US&#039;s lead over China in the emerging technology.",
-      "source": "Al Jazeera",
-      "sourceUrl": "https://www.aljazeera.com/news/2026/9/13/trump-dismisses-calls-for-ai-slowdown-from-leading-tech-ceos?traffic_source=rss",
-      "category": "science",
-      "score": 3,
-      "llmVerified": false,
-      "llmScore": null,
-      "llmReason": "",
-      "llmModel": null,
-      "region": "asia",
-      "location": "China",
-      "imageUrl": null,
-      "pubDate": "2026-09-13T23:31:56.000Z"
-    },
-    {
-      "id": "2cc417a31e1c",
-      "title": "Missing US hiker, 70, found injured on remote island after week-long search",
-      "summary": "Craig Berg was hypothermic but alert when located on Isle Royale by Michigan police and officials during solo hike A 70-year-old hiker who had been missing for a week on a Michigan island was rescued on Saturday, according to the US Coast Guard. Craig Berg was located on Isle Royale with the help of backpackers, Michigan state police troopers and local officials.",
-      "source": "Guardian World",
-      "sourceUrl": "https://www.theguardian.com/us-news/2026/sep/13/missing-isle-royale-hiker-70-years-old-found-rescued",
-      "category": "humanity",
-      "score": 3,
-      "llmVerified": false,
-      "llmScore": null,
-      "llmReason": "",
-      "llmModel": null,
-      "region": "world",
-      "location": "World",
-      "imageUrl": null,
-      "pubDate": "2026-09-13T23:12:29.000Z"
-    },
-    {
-      "id": "b5fb9ddebc56",
-      "title": "Barcelona beat Levante as Yamal scores twice to maintain perfect start",
-      "summary": "Barcelona have won all six games this season and sit top of La Liga with five wins from five after victory at Levante.",
-      "source": "Al Jazeera",
-      "sourceUrl": "https://www.aljazeera.com/sports/2026/9/13/barcelona-beat-levante-as-yamal-scores-twice-to-maintain-perfect-start?traffic_source=rss",
-      "category": "sports",
-      "score": 3,
-      "llmVerified": false,
-      "llmScore": null,
-      "llmReason": "",
-      "llmModel": null,
-      "region": "world",
-      "location": "World",
-      "imageUrl": null,
-      "pubDate": "2026-09-13T22:10:04.000Z"
     }
   ]
 }
